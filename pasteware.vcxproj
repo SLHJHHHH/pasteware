@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{4B9A2E3F-9D44-4E41-9E0D-0A9D35D28F3B}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>pasteware</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)build\</OutDir>
+    <IntDir>$(SolutionDir)build\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)build\</OutDir>
+    <IntDir>$(SolutionDir)build\obj\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)src\game;$(ProjectDir)src\game\sdk;$(ProjectDir)src\math;$(ProjectDir)menu;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>Psapi.lib;OpenGL32.lib;$(ProjectDir)libraries\libMinHook.x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\dllmain.cpp" />
+    <ClCompile Include="src\core\module.cpp" />
+    <ClCompile Include="src\core\trace.cpp" />
+    <ClCompile Include="src\core\client_hook.cpp" />
+    <ClCompile Include="src\game\runtime.cpp" />
+    <ClCompile Include="src\game\offsets.cpp" />
+    <ClCompile Include="src\game\interfaces.cpp" />
+    <ClCompile Include="src\game\state.cpp" />
+    <ClCompile Include="src\game\entities.cpp" />
+    <ClCompile Include="src\core\vmt_hook.cpp" />
+    <ClCompile Include="src\core\hook_manager.cpp" />
+    <ClCompile Include="src\core\frame.cpp" />
+    <ClCompile Include="src\core\console.cpp" />
+    <ClCompile Include="src\core\opengl_hook.cpp" />
+    <ClCompile Include="src\features\visuals\renderer.cpp" />
+    <ClCompile Include="src\features\visuals\crosshair.cpp" />
+    <ClCompile Include="src\features\visuals\esp.cpp" />
+    <ClCompile Include="src\config\config.cpp" />
+    <ClCompile Include="src\bindings\bindings.cpp" />
+    <ClCompile Include="src\features\feature_manager.cpp" />
+    <ClCompile Include="src\features\command_manager.cpp" />
+    <ClCompile Include="src\features\movement\bunnyhop.cpp" />
+    <ClCompile Include="src\features\antiaim\antiaim.cpp" />
+    <ClCompile Include="src\features\aim\aim.cpp" />
+    <ClCompile Include="src\ui\menu.cpp" />
+    <ClCompile Include="src\ui\menu_renderer.cpp" />
+    <ClCompile Include="src\ui\imgui_gl.cpp" />
+    <ClCompile Include="src\ui\primordial_menu.cpp" />
+    <ClCompile Include="menu\imgui.cpp" />
+    <ClCompile Include="menu\imgui_draw.cpp" />
+    <ClCompile Include="menu\imgui_tables.cpp" />
+    <ClCompile Include="menu\imgui_widgets.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\core\module.h" />
+    <ClInclude Include="src\core\trace.h" />
+    <ClInclude Include="src\core\minhook.h" />
+    <ClInclude Include="src\core\client_hook.h" />
+    <ClInclude Include="src\game\runtime.h" />
+    <ClInclude Include="src\game\offsets.h" />
+    <ClInclude Include="src\game\interfaces.h" />
+    <ClInclude Include="src\game\state.h" />
+    <ClInclude Include="src\game\entities.h" />
+    <ClInclude Include="src\core\vmt_hook.h" />
+    <ClInclude Include="src\core\hook_manager.h" />
+    <ClInclude Include="src\core\frame.h" />
+    <ClInclude Include="src\core\console.h" />
+    <ClInclude Include="src\core\opengl_hook.h" />
+    <ClInclude Include="src\features\visuals\renderer.h" />
+    <ClInclude Include="src\features\visuals\crosshair.h" />
+    <ClInclude Include="src\features\visuals\esp.h" />
+    <ClInclude Include="src\config\config.h" />
+    <ClInclude Include="src\bindings\bindings.h" />
+    <ClInclude Include="src\features\feature.h" />
+    <ClInclude Include="src\features\feature_manager.h" />
+    <ClInclude Include="src\features\command_feature.h" />
+    <ClInclude Include="src\features\command_manager.h" />
+    <ClInclude Include="src\features\movement\bunnyhop.h" />
+    <ClInclude Include="src\features\antiaim\antiaim.h" />
+    <ClInclude Include="src\features\aim\aim.h" />
+    <ClInclude Include="src\ui\menu.h" />
+    <ClInclude Include="src\ui\menu_renderer.h" />
+    <ClInclude Include="src\ui\imgui_gl.h" />
+    <ClInclude Include="src\ui\primordial_menu.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
