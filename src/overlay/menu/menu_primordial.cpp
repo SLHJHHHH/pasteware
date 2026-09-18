@@ -4,9 +4,12 @@
 
 namespace
 {
+	static ImU32 accent_u32(float alpha);
+	static ImU32 white_u32(float alpha);
+
 	static bool contains_filter(const char* text, const char* filter)
 	{
-		if (!filter[0])
+		if (!filter || !filter[0])
 			return true;
 
 		const size_t len = strlen(filter);
@@ -18,22 +21,42 @@ namespace
 		return false;
 	}
 
-	void panel(const char* name, const ImVec2& pos, const ImVec2& size, const std::function<void()>& draw)
+	void panel(const char* name, const ImVec2& pos, const ImVec2& size, const std::function<void()>& draw, bool glow = false)
 	{
 		if (g_pMenu.get() && !contains_filter(name, g_pMenu->SearchText()))
 			return;
 
 		ImGui::SetCursorPos(pos);
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.105f, 0.105f, 0.112f, 1.f));
-		ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.18f, 0.18f, 0.19f, 1.f));
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.f, 10.f));
-		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.f);
+		if (glow)
+		{
+			const ImVec2 g0 = ImGui::GetCursorScreenPos();
+			ImDrawList* gdl = ImGui::GetWindowDrawList();
+			gdl->AddRect(g0 - ImVec2(5.f, 5.f), g0 + size + ImVec2(5.f, 5.f), accent_u32(0.06f), 12.f, 15, 6.f);
+			gdl->AddRect(g0 - ImVec2(2.f, 2.f), g0 + size + ImVec2(2.f, 2.f), accent_u32(0.10f), 10.f, 15, 1.5f);
+		}
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.095f, 0.095f, 0.135f, 1.f));
+		ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.32f, 0.30f, 0.46f, 0.55f));
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.f, 11.f));
+		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.f);
 		ImGui::BeginChild(name, size, true);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.91f, 0.91f, 0.92f, 1.f));
-		ImGui::TextUnformatted(name);
-		ImGui::PopStyleColor();
-		ImGui::Separator();
-		draw();
+		{
+			const ImVec2 t0 = ImGui::GetCursorScreenPos();
+			ImDrawList* dl = ImGui::GetWindowDrawList();
+			dl->AddCircleFilled(t0 + ImVec2(3.f, 7.f), 3.f, accent_u32(0.95f));
+			dl->AddCircle(t0 + ImVec2(3.f, 7.f), 5.5f, accent_u32(0.25f), 16, 1.2f);
+			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 12.f);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.96f, 0.95f, 0.98f, 1.f));
+			ImGui::TextUnformatted(name);
+			ImGui::PopStyleColor();
+			const ImVec2 tmin = ImGui::GetItemRectMin();
+			const ImVec2 tmax = ImGui::GetItemRectMax();
+			const float ly = tmax.y + 2.f;
+			dl->AddLine(ImVec2(tmin.x, ly), ImVec2(tmin.x + (tmax.x - tmin.x) * 0.5f), accent_u32(0.90f), 2.f);
+			dl->AddLine(ImVec2(tmin.x, ly), ImVec2(tmax.x, ly), white_u32(0.06f), 1.f);
+			ImGui::Spacing();
+			ImGui::Spacing();
+			draw();
+		}
 		ImGui::EndChild();
 		ImGui::PopStyleVar(2);
 		ImGui::PopStyleColor(2);
@@ -41,15 +64,21 @@ namespace
 
 	bool side(const char* label, bool active)
 	{
-		ImGui::PushStyleColor(ImGuiCol_Button, active ? ImVec4(0.18f, 0.18f, 0.19f, 1.f) : ImVec4(0.f, 0.f, 0.f, 0.f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.18f, 0.19f, 1.f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.23f, 0.23f, 0.24f, 1.f));
+		ImGui::PushStyleColor(ImGuiCol_Button, active ? ImVec4(1.0f, 0.18f, 0.55f, 0.22f) : ImVec4(0.f, 0.f, 0.f, 0.f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.18f, 0.55f, 0.26f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 0.22f, 0.60f, 0.36f));
 
-		ImGui::PushStyleColor(ImGuiCol_Text, active ? ImVec4(0.94f, 0.94f, 0.95f, 1.f) : ImVec4(0.62f, 0.62f, 0.64f, 1.f));
+		ImGui::PushStyleColor(ImGuiCol_Text, active ? ImVec4(1.0f, 1.0f, 1.0f, 1.f) : ImVec4(0.66f, 0.66f, 0.72f, 1.f));
 		const bool hit = ImGui::Button(label, ImVec2(134.f, 32.f));
-		const ImVec2 min = ImGui::GetItemRectMin();
 		if (active)
-			GImGui->CurrentWindow->DrawList->AddRectFilled(min, min + ImVec2(2.f, 32.f), ImGui::GetColorU32(ImGuiCol_CheckMark));
+		{
+			const ImVec2 mn = ImGui::GetItemRectMin();
+			const ImVec2 mx = ImGui::GetItemRectMax();
+			ImDrawList* dl = GImGui->CurrentWindow->DrawList;
+			dl->AddRectFilled(mn, mn + ImVec2(3.f, 32.f), accent_u32(1.f), 2.f);
+			dl->AddRectFilled(mn + ImVec2(3.f, 0.f), mn + ImVec2(14.f, 32.f), accent_u32(0.16f));
+			dl->AddRect(mn, mx, accent_u32(0.30f), 5.f, 15, 1.f);
+		}
 		ImGui::PopStyleColor(4);
 		return hit;
 	}
@@ -67,6 +96,127 @@ namespace
 				selected = static_cast<int>(i);
 		}
 	}
+
+	static ImU32 accent_u32(float alpha)
+	{
+		ImVec4 c = components::get_accent_color();
+		c.w = alpha;
+		return ImGui::GetColorU32(c);
+	}
+
+	static ImU32 white_u32(float alpha)
+	{
+		return ImGui::GetColorU32(ImVec4(1.f, 1.f, 1.f, alpha));
+	}
+
+	static void draw_aa_radar(int side_mode, float max_radius = 92.f)
+	{
+		const ImVec2 cur = ImGui::GetCursorScreenPos();
+		const ImVec2 avail = ImGui::GetContentRegionAvail();
+		const float radius = ImMax(ImMin(avail.x * 0.5f - 10.f, max_radius), 24.f);
+		const ImVec2 c = cur + ImVec2(avail.x * 0.5f, radius + 8.f);
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		const float t = static_cast<float>(ImGui::GetTime());
+
+		dl->AddCircleFilled(c, radius, white_u32(0.020f), 64);
+		dl->AddCircle(c, radius, white_u32(0.07f), 64, 1.f);
+		dl->AddCircle(c, radius * 0.72f, white_u32(0.06f), 64, 1.f);
+		dl->AddCircle(c, radius * 0.44f, white_u32(0.05f), 64, 1.f);
+		dl->AddLine(c - ImVec2(radius, 0.f), c + ImVec2(radius, 0.f), white_u32(0.05f), 1.f);
+		dl->AddLine(c - ImVec2(0.f, radius), c + ImVec2(0.f, radius), white_u32(0.05f), 1.f);
+
+		for (int i = 0; i < 12; ++i)
+		{
+			const float a = static_cast<float>(i) * (6.28318f / 12.f);
+			const ImVec2 p0 = c + ImVec2(ImCos(a) * (radius - 6.f), ImSin(a) * (radius - 6.f));
+			const ImVec2 p1 = c + ImVec2(ImCos(a) * radius, ImSin(a) * radius);
+			dl->AddLine(p0, p1, white_u32(0.05f), 1.f);
+		}
+
+		const float ang = t * 0.8f;
+		const ImVec2 tip = c + ImVec2(ImCos(ang) * radius, ImSin(ang) * radius);
+		dl->AddLine(c, tip, accent_u32(0.85f), 2.f);
+		dl->AddCircle(tip, 8.f, accent_u32(0.30f), 24, 1.5f);
+		dl->AddCircleFilled(tip, 3.5f, accent_u32(1.f));
+
+		const float fake = ang + (side_mode == 1 ? -0.7f : side_mode == 2 ? 0.7f : 0.7f);
+		const ImVec2 ftip = c + ImVec2(ImCos(fake) * radius * 0.72f, ImSin(fake) * radius * 0.72f);
+		dl->AddLine(c, ftip, ImGui::GetColorU32(ImVec4(0.35f, 0.75f, 1.f, 0.75f)), 1.5f);
+		dl->AddCircleFilled(ftip, 2.5f, ImGui::GetColorU32(ImVec4(0.35f, 0.75f, 1.f, 1.f)));
+		dl->AddCircleFilled(c, 4.5f, white_u32(0.90f));
+
+		ImGui::Dummy(ImVec2(avail.x, radius * 2.f + 16.f));
+	}
+
+	static void draw_latency_meter(int latency)
+	{
+		const float t = static_cast<float>(ImGui::GetTime());
+		const int bars = 30;
+		const float avail = ImGui::GetContentRegionAvail().x;
+		const float bar_w = ImMax((avail - static_cast<float>(bars - 1) * 3.f) / static_cast<float>(bars), 2.f);
+		const float max_h = 44.f;
+		const ImVec2 start = ImGui::GetCursorScreenPos();
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		const int lit = ImMin(ImMax(latency, 0) / 16, bars);
+
+		for (int i = 0; i < bars; ++i)
+		{
+			const float phase = ImSin(t * 2.2f + static_cast<float>(i) * 0.45f) * 0.5f + 0.5f;
+			float h = 8.f + phase * (max_h - 12.f);
+			const bool on = i < lit;
+			if (on)
+				h = ImMin(h + 8.f, max_h);
+			const float x0 = start.x + static_cast<float>(i) * (bar_w + 3.f);
+			dl->AddRectFilled(ImVec2(x0, start.y), ImVec2(x0 + bar_w, start.y + max_h), white_u32(0.035f), 2.f);
+			dl->AddRectFilled(ImVec2(x0, start.y + max_h - h), ImVec2(x0 + bar_w, start.y + max_h),
+				on ? accent_u32(0.95f) : white_u32(0.13f), 2.f);
+		}
+		ImGui::Dummy(ImVec2(avail, max_h + 4.f));
+	}
+
+	static void draw_tick_bar(const char* label, int value, int max, const char* suffix)
+	{
+		const int cells = ImMax(max, 1);
+		const float t = static_cast<float>(ImGui::GetTime());
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.78f, 0.78f, 0.85f, 1.f));
+		ImGui::Text("%s", label);
+		ImGui::PopStyleColor();
+		ImGui::SameLine();
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.55f, 0.75f, 0.95f));
+		ImGui::Text("%d %s", value, suffix);
+		ImGui::PopStyleColor();
+
+		const int show = ImMin(cells, 40);
+		const ImVec2 start = ImGui::GetCursorScreenPos();
+		const float avail = ImGui::GetContentRegionAvail().x;
+		const float cell_w = ImMax(ImMin(14.f, (avail - static_cast<float>(show - 1) * 2.f) / static_cast<float>(show)), 1.5f);
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		for (int i = 0; i < show; ++i)
+		{
+			const float scaled = static_cast<float>(i + 1) * static_cast<float>(cells) / static_cast<float>(show);
+			const bool on = scaled <= static_cast<float>(value);
+			const bool tip = on && value < cells && scaled + static_cast<float>(cells) / static_cast<float>(show) > static_cast<float>(value);
+			const ImVec2 c0 = start + ImVec2(static_cast<float>(i) * (cell_w + 2.f), 2.f);
+			const float pulse = tip ? 0.55f + 0.45f * ImSin(t * 5.f) : 1.f;
+			dl->AddRectFilled(c0, c0 + ImVec2(cell_w, 8.f),
+				on ? accent_u32(0.95f * pulse) : white_u32(0.07f), 2.f);
+		}
+		ImGui::Dummy(ImVec2(avail, 12.f));
+	}
+
+	static void draw_status_row(const char* label, bool on)
+	{
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		const ImVec2 p = ImGui::GetCursorScreenPos() + ImVec2(4.f, 7.f);
+		dl->AddCircleFilled(p, 3.f, on ? ImGui::GetColorU32(ImVec4(0.35f, 0.95f, 0.55f, 1.f)) : ImGui::GetColorU32(ImVec4(0.45f, 0.45f, 0.52f, 1.f)));
+		if (on)
+			dl->AddCircle(p, 6.f, ImGui::GetColorU32(ImVec4(0.35f, 0.95f, 0.55f, 0.25f)), 20, 1.2f);
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 14.f);
+		ImGui::PushStyleColor(ImGuiCol_Text, on ? ImVec4(0.90f, 0.90f, 0.94f, 1.f) : ImVec4(0.55f, 0.55f, 0.62f, 1.f));
+		ImGui::TextUnformatted(label);
+		ImGui::PopStyleColor();
+	}
+
 	struct bind_row_t
 	{
 		const char* label;
@@ -144,17 +294,17 @@ void CMenu::Draw()
 
 	ImVec4 accent = components::get_accent_color();
 
-	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.f);
-	ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 4.f);
-	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(7.f, 4.f));
-	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.82f, 0.82f, 0.84f, 1.f));
-	ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImVec4(0.43f, 0.43f, 0.45f, 1.f));
-	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.16f, 0.16f, 0.17f, 1.f));
-	ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.21f, 0.21f, 0.22f, 1.f));
-	ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0.24f, 0.24f, 0.25f, 1.f));
-	ImGui::PushStyleColor(ImGuiCol_CheckMark, accent);
-	ImGui::PushStyleColor(ImGuiCol_SliderGrab, accent);
-	ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(accent.x * 1.15f, accent.y * 1.15f, accent.z * 1.15f, 1.f));
+	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.f);
+	ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 10.f);
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.f, 4.f));
+	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.91f, 0.91f, 0.95f, 1.f));
+	ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImVec4(0.47f, 0.47f, 0.56f, 1.f));
+	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.135f, 0.135f, 0.20f, 1.f));
+	ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.18f, 0.18f, 0.27f, 1.f));
+	ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0.23f, 0.21f, 0.33f, 1.f));
+	ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(accent.x, accent.y, accent.z, 1.f));
+	ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(accent.x, accent.y, accent.z, 1.f));
+	ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(ImMin(accent.x * 1.15f, 1.f), ImMin(accent.y * 1.25f, 1.f), ImMin(accent.z * 1.15f, 1.f), 1.f));
 	
 	if (g_pPrimTextFont)
 		ImGui::PushFont(g_pPrimTextFont);
@@ -481,7 +631,7 @@ void CMenu::Draw()
 	{
 		if (section[ANTIAIM] == 0)
 		{
-			panel("Global AntiAim", a, ImVec2(ImMin(content_w, 420.f), 340.f), [&]()
+			panel("Global AntiAim", a, ImVec2(panel_w, 420.f), [&]()
 			{
 				const char* roll[] = { "None", "Sideways 50", "Sideways 90", "Sideways 180", "Static" };
 				const char* at[] = { "Off", "Yaw to closest", "Yaw to firepower" };
@@ -498,10 +648,21 @@ void CMenu::Draw()
 				components::slider_float("Static roll", &cvars::ragebot.aa_roll_static, -180.f, 180.f, "%.1f", "°");
 				components::checkbox("Untrusted checks", &cvars::ragebot.aa_untrusted_checks);
 			});
+			panel("Yaw Preview", b, ImVec2(panel_w, 420.f), [&]()
+			{
+				draw_aa_radar(cvars::ragebot.aa_side);
+				draw_status_row("Anti-aim enabled", cvars::ragebot.aa_enabled != 0);
+				draw_status_row("Roll enabled", cvars::ragebot.aa_roll != 0);
+				draw_status_row("Fake lag enabled", cvars::ragebot.fakelag_enabled != 0);
+				ImGui::Spacing();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.60f, 0.68f, 1.f));
+				ImGui::TextWrapped("Pink sweep is the real yaw, blue mark is the desync offset.");
+				ImGui::PopStyleColor();
+			}, true);
 		}
 		else if (section[ANTIAIM] == 1)
 		{
-			panel("Stand Angles", a, ImVec2(ImMin(content_w, 420.f), 340.f), [&]()
+			panel("Stand Angles", a, ImVec2(panel_w, 340.f), [&]()
 			{
 				const char* pitch[] = { "None", "Down", "Up", "Fake down", "Fake up", "Jitter", "Fake jitter" };
 				const char* yaw[] = { "None", "Backwards", "Sideways 90", "Sideways 140", "Static", "Local view", "Desync" };
@@ -511,20 +672,32 @@ void CMenu::Draw()
 				components::slider_int("Desync", &cvars::ragebot.aa_stand_desync, 0, 100, "%d", "%");
 				components::checkbox("Desync helper", &cvars::ragebot.aa_stand_desync_helper);
 			});
+			panel("Angle Radar", b, ImVec2(panel_w, 340.f), [&]()
+			{
+				draw_aa_radar(cvars::ragebot.aa_stand_yaw, 78.f);
+				draw_status_row("Anti-aim enabled", cvars::ragebot.aa_enabled != 0);
+				draw_status_row("Desync helper", cvars::ragebot.aa_stand_desync_helper != 0);
+			}, true);
 		}
 		else if (section[ANTIAIM] == 2)
 		{
-			panel("Movement Angles", a, ImVec2(ImMin(content_w, 420.f), 240.f), [&]() 
+			panel("Movement Angles", a, ImVec2(panel_w, 240.f), [&]() 
 			{ 
 				const char* pitch[] = { "None", "Down", "Up", "Fake down", "Fake up", "Jitter", "Fake jitter" }; 
 				const char* yaw[] = { "None", "Backwards", "Local view", "Gait sideways" }; 
 				components::combo("Pitch", &cvars::ragebot.aa_move_pitch, pitch, IM_ARRAYSIZE(pitch)); 
 				components::combo("Yaw", &cvars::ragebot.aa_move_yaw, yaw, IM_ARRAYSIZE(yaw)); 
 			});
+			panel("Gait Preview", b, ImVec2(panel_w, 240.f), [&]()
+			{
+				draw_aa_radar(cvars::ragebot.aa_move_yaw, 56.f);
+				draw_status_row("Moving", cvars::kreedz.active != 0);
+				draw_status_row("Fake lag", cvars::ragebot.fakelag_enabled != 0);
+			}, true);
 		}
 		else
 		{
-			panel("Fakelag", a, ImVec2(ImMin(content_w, 420.f), 320.f), [&]()
+			panel("Fakelag", a, ImVec2(panel_w, 320.f), [&]()
 			{
 				const char* type[] = { "Maximum", "Break lag compensation" };
 				const char* trig[] = { "Standing", "In air" };
@@ -536,6 +709,16 @@ void CMenu::Draw()
 				components::checkbox("On enemy in pvs", &cvars::ragebot.fakelag_on_enemy_in_pvs);
 				components::checkbox("On peek", &cvars::ragebot.fakelag_on_peek);
 			});
+			panel("Choke Graph", b, ImVec2(panel_w, 320.f), [&]()
+			{
+				draw_latency_meter(cvars::ragebot.fakelag_choke_limit * 8);
+				ImGui::Spacing();
+				draw_tick_bar("Choke limit", cvars::ragebot.fakelag_choke_limit, MAX_TOTAL_CMDS, "ticks");
+				ImGui::Spacing();
+				draw_status_row("Fake lag", cvars::ragebot.fakelag_enabled != 0);
+				draw_status_row("While shooting", cvars::ragebot.fakelag_while_shooting != 0);
+				draw_status_row("On peek", cvars::ragebot.fakelag_on_peek != 0);
+			}, true);
 		}
 	}
 	else if (m_iSelectedTab == VISUALS)
@@ -669,7 +852,7 @@ void CMenu::Draw()
 				components::combo("Desync AA", &cvars::visuals.colored_models_players_desync_aa, rend, IM_ARRAYSIZE(rend));
 				components::color_edit("Desync AA", cvars::visuals.colored_models_players_desync_aa_color);
 			});
-			panel("Backtrack", ImVec2(b.x, 10.f), ImVec2(panel_w, 300.f), [&]()
+			panel("Backtrack", ImVec2(b.x, 0.f), ImVec2(panel_w, 300.f), [&]()
 			{
 				const char* rend[] = { "Off", "Flat", "Darkened", "Lighted", "Textured" };
 				const char* pl[] = { "Enemies", "Teammates" };
@@ -682,7 +865,7 @@ void CMenu::Draw()
 				components::color_edit("CT hide", cvars::visuals.colored_models_backtrack_color_ct_hide);
 				components::color_edit("CT visible", cvars::visuals.colored_models_backtrack_color_ct_vis);
 			});
-			panel("Hands", ImVec2(b.x, 320.f), ImVec2(panel_w, 220.f), [&]()
+			panel("Hands", ImVec2(b.x, 310.f), ImVec2(panel_w, 220.f), [&]()
 			{
 				const char* rend[] = { "Off", "Flat", "Darkened", "Lighted", "Textured" };
 				components::combo("Render", &cvars::visuals.colored_models_hands, rend, IM_ARRAYSIZE(rend));
@@ -691,7 +874,7 @@ void CMenu::Draw()
 				components::checkbox("Rainbow", &cvars::visuals.colored_models_hands_color_rainbow);
 				components::slider_float("Rainbow speed", &cvars::visuals.colored_models_hands_color_rainbow_speed, 0.1f, 10.f, "%.1f", "");
 			});
-			panel("Lights", ImVec2(b.x, 550.f), ImVec2(panel_w, 420.f), [&]()
+			panel("Lights", ImVec2(b.x, 540.f), ImVec2(panel_w, 420.f), [&]()
 			{
 				const char* orig[] = { "Legs", "Body", "Head" };
 				const char* pl[] = { "Local", "Enemies", "Teammates" };
@@ -778,7 +961,7 @@ components::checkbox("Allow resize", &cvars::visuals.main_allow_resize);
 	{
 		if (section[MOVEMENT] == 0)
 		{
-			panel("Main Movement", a, ImVec2(ImMin(content_w, 420.f), 470.f), [&]() 
+			panel("Main Movement", a, ImVec2(panel_w, 470.f), [&]() 
 			{ 
 				components::checkbox("Enabled", &cvars::kreedz.active, &cvars::kreedz.key); 
 				components::keybind("Key", &cvars::kreedz.key); 
@@ -791,10 +974,26 @@ components::checkbox("Allow resize", &cvars::visuals.main_allow_resize);
 				components::keybind("Slow walk key", &cvars::kreedz.slowwalk_key); 
 				components::slider_float("Slow walk speed", &cvars::kreedz.slowwalk_speed, 1.f, 320.f, "%.0f", "u/s"); 
 			});
+			panel("Movement Status", b, ImVec2(panel_w, 470.f), [&]()
+			{
+				draw_tick_bar("Slow walk speed", static_cast<int>(cvars::kreedz.slowwalk_speed), 320, "u/s");
+				ImGui::Spacing();
+				draw_tick_bar("Ground gain", static_cast<int>(cvars::kreedz.groundstrafe_gain * 100.f), 100, "%");
+				ImGui::Spacing();
+				draw_status_row("Enabled", cvars::kreedz.active != 0);
+				draw_status_row("Bunnyhop", cvars::kreedz.bunnyhop != 0);
+				draw_status_row("Ground strafe", cvars::kreedz.groundstrafe != 0);
+				draw_status_row("Fast run", cvars::kreedz.fastrun != 0);
+				draw_status_row("Slow walk", cvars::kreedz.slowwalk != 0);
+				ImGui::Spacing();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.60f, 0.68f, 1.f));
+				ImGui::TextWrapped("Bars reflect the current speed limits applied to your movement.");
+				ImGui::PopStyleColor();
+			}, true);
 		}
 		else if (section[MOVEMENT] == 1)
 		{
-			panel("Strafes & Helpers", a, ImVec2(ImMin(content_w, 420.f), 420.f), [&]() 
+			panel("Strafes & Helpers", a, ImVec2(panel_w, 420.f), [&]() 
 			{ 
 				components::checkbox("Rage strafe", &cvars::kreedz.rage_strafe); 
 				components::checkbox("Legit strafe", &cvars::kreedz.legit_strafe); 
@@ -804,10 +1003,24 @@ components::checkbox("Allow resize", &cvars::visuals.main_allow_resize);
 				components::slider_float("DeGen power", &cvars::kreedz.degen_power, 50.f, 1000.f, "%.0f"); 
 components::slider_float("DeGen tilt", &cvars::kreedz.degen_tilt, -0.9f, 0.9f, "%.2f"); 
 			});
+			panel("Strafe Preview", b, ImVec2(panel_w, 420.f), [&]()
+			{
+				draw_tick_bar("Legit speed", static_cast<int>(cvars::kreedz.legit_strafe_speed), 100, "%");
+				ImGui::Spacing();
+				draw_tick_bar("DeGen power", static_cast<int>(cvars::kreedz.degen_power), 1000, "u/s");
+				ImGui::Spacing();
+				draw_status_row("Rage strafe", cvars::kreedz.rage_strafe != 0);
+				draw_status_row("Legit strafe", cvars::kreedz.legit_strafe != 0);
+				draw_status_row("DeGen", cvars::kreedz.degen != 0);
+				ImGui::Spacing();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.60f, 0.68f, 1.f));
+				ImGui::TextWrapped("Tune the gain meters until both bars read comfortably below the limit.");
+				ImGui::PopStyleColor();
+			}, true);
 		}
 		else
 		{
-			panel("Movement Exploits", a, ImVec2(ImMin(content_w, 420.f), 310.f), [&]() 
+			panel("Movement Exploits", a, ImVec2(panel_w, 310.f), [&]() 
 			{ 
 				components::checkbox("Jump bug", &cvars::kreedz.jumpbug); 
 				components::checkbox("Edge bug", &cvars::kreedz.edgebug); 
@@ -815,13 +1028,22 @@ components::slider_float("DeGen tilt", &cvars::kreedz.degen_tilt, -0.9f, 0.9f, "
 				components::checkbox("Auto jump of fall", &cvars::kreedz.auto_jof); 
 				components::slider_float("JOF distance", &cvars::kreedz.auto_jof_min_distance, 1.f, 16.f, "%.1f", "units"); 
 			});
+			panel("Bug Telemetry", b, ImVec2(panel_w, 310.f), [&]()
+			{
+				draw_tick_bar("JOF distance", static_cast<int>(cvars::kreedz.auto_jof_min_distance), 16, "units");
+				ImGui::Spacing();
+				draw_status_row("Jump bug", cvars::kreedz.jumpbug != 0);
+				draw_status_row("Edge bug", cvars::kreedz.edgebug != 0);
+				draw_status_row("Wall bug", cvars::kreedz.wallbug != 0);
+				draw_status_row("Auto jump off fall", cvars::kreedz.auto_jof != 0);
+			}, true);
 		}
 	}
 	else if (m_iSelectedTab == MISC)
 	{
 		if (section[MISC] == 0)
 		{
-			panel("Exploits", a, ImVec2(ImMin(content_w, 420.f), 540.f), [&]() 
+			panel("Exploits", a, ImVec2(panel_w, 640.f), [&]() 
 			{ 
 				components::checkbox("Doubletap", &cvars::misc.doubletap, &cvars::misc.doubletap_key); 
 				components::keybind("Doubletap key", &cvars::misc.doubletap_key); 
@@ -837,10 +1059,28 @@ components::keybind("Fakelatency key", &cvars::misc.fakelatency_key);
 				components::checkbox("Predict local", &cvars::misc.predict_local); 
 				components::checkbox("Predict players", &cvars::misc.predict_players);
 			});
+			panel("Telemetry", b, ImVec2(panel_w, 640.f), [&]()
+			{
+				draw_latency_meter(cvars::misc.fakelatency_amount);
+				ImGui::Spacing();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.60f, 0.68f, 1.f));
+				ImGui::TextUnformatted("Fake latency load");
+				ImGui::PopStyleColor();
+				ImGui::Spacing();
+				draw_tick_bar("Doubletap shift", cvars::misc.doubletap_shift, 4, "ticks");
+				draw_tick_bar("Name interval", cvars::misc.namestealer_interval, 60, "s");
+				ImGui::Spacing();
+				draw_status_row("Doubletap", cvars::misc.doubletap != 0);
+				draw_status_row("Airstuck", cvars::misc.airstuck != 0);
+				draw_status_row("Fake latency", cvars::misc.fakelatency != 0);
+				draw_status_row("Name stealer", cvars::misc.namestealer != 0);
+				draw_status_row("Predict local", cvars::misc.predict_local != 0);
+				draw_status_row("Predict players", cvars::misc.predict_players != 0);
+			}, true);
 		}
 		else if (section[MISC] == 1)
 		{
-			panel("Automation", a, ImVec2(ImMin(content_w, 420.f), 530.f), [&]() 
+			panel("Automation", a, ImVec2(panel_w, 560.f), [&]() 
 			{ 
 				components::checkbox("Automatic reload", &cvars::misc.automatic_reload); 
 				components::checkbox("Automatic pistol", &cvars::misc.automatic_pistol); 
@@ -855,10 +1095,27 @@ components::checkbox("Developer", &cvars::misc.fps_developer);
 				components::checkbox("Replace models", &cvars::misc.replace_models_with_original); 
 				components::checkbox("Maximize on respawn", &cvars::misc.maximize_on_respawn);
 			});
+			panel("Performance", b, ImVec2(panel_w, 560.f), [&]()
+			{
+				draw_latency_meter(cvars::misc.frame_skip_amount * 40);
+				ImGui::Spacing();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.60f, 0.68f, 1.f));
+				ImGui::TextUnformatted("Frame timing load");
+				ImGui::PopStyleColor();
+				ImGui::Spacing();
+				draw_tick_bar("Frame skip", cvars::misc.frame_skip_amount, 10, "frames");
+				ImGui::Spacing();
+				draw_status_row("Automatic reload", cvars::misc.automatic_reload != 0);
+				draw_status_row("Automatic pistol", cvars::misc.automatic_pistol != 0);
+				draw_status_row("No spread", cvars::misc.nospread != 0);
+				draw_status_row("Unlock FPS", cvars::misc.fps_unlock != 0);
+				draw_status_row("Frame skip", cvars::misc.frame_skip != 0);
+				draw_status_row("Client weapons", cvars::misc.client_weapons != 0);
+			}, true);
 		}
 		else if (section[MISC] == 2)
 		{
-			panel("Knifebot", a, ImVec2(ImMin(content_w, 420.f), 740.f), [&]() 
+			panel("Knifebot", a, ImVec2(panel_w, 700.f), [&]() 
 			{ 
 				components::checkbox("Enabled", &cvars::misc.kb_enabled, &cvars::misc.kb_key); 
 				components::keybind("Key", &cvars::misc.kb_key); 
@@ -878,10 +1135,33 @@ const char* kat[] = { "Swing", "Stab" };
 				components::multi_combo("Conditions", cvars::misc.kb_conditions, kcond, IM_ARRAYSIZE(kcond)); 
 				components::checkbox("Debug", &cvars::misc.kb_debug);
 			});
+			panel("Knife Range", b, ImVec2(panel_w, 700.f), [&]()
+			{
+				draw_tick_bar("Maximum FOV", static_cast<int>(cvars::misc.kb_fov), 180, "deg");
+				ImGui::Spacing();
+				draw_tick_bar("Swing distance", static_cast<int>(cvars::misc.kb_swing_distance), 64, "units");
+				ImGui::Spacing();
+				draw_tick_bar("Stab distance", static_cast<int>(cvars::misc.kb_stab_distance), 64, "units");
+				ImGui::Spacing();
+				draw_tick_bar("Hitbox scale", static_cast<int>(cvars::misc.kb_aim_hitbox_scale), 200, "%");
+				ImGui::Spacing();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.60f, 0.68f, 1.f));
+				ImGui::TextUnformatted("Conditions");
+				ImGui::PopStyleColor();
+				ImGui::Spacing();
+				draw_status_row("Knifebot", cvars::misc.kb_enabled != 0);
+				draw_status_row("Friendly fire", cvars::misc.kb_friendly_fire != 0);
+				draw_status_row("Position adjustment", cvars::misc.kb_position_adjustment != 0);
+				draw_status_row("Debug overlay", cvars::misc.kb_debug != 0);
+				ImGui::Spacing();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.60f, 0.68f, 1.f));
+				ImGui::TextWrapped("Swing and stab bars must stay above the target distance or the bot will whiff.");
+				ImGui::PopStyleColor();
+			}, true);
 		}
 		else if (section[MISC] == 3)
 		{
-			panel("Other Features", a, ImVec2(ImMin(content_w, 420.f), 480.f), [&]() 
+			panel("Other Features", a, ImVec2(panel_w, 480.f), [&]() 
 			{ 
 				components::checkbox("Auto block", &cvars::misc.auto_block, &cvars::misc.auto_block_key); 
 				components::keybind("Auto block key", &cvars::misc.auto_block_key); 
@@ -894,10 +1174,21 @@ components::keybind("Auto boost key", &cvars::misc.auto_boost_key);
 				components::keybind("Speed key", &cvars::misc.speed_key); 
 				components::slider_float("Speed value", &cvars::misc.speed_value, 0.1f, 5.f, "%.1f", "x");
 			});
+			panel("Feature Status", b, ImVec2(panel_w, 480.f), [&]()
+			{
+				draw_tick_bar("Game speed", static_cast<int>(cvars::misc.speed_value * 20.f), 100, "%");
+				ImGui::Spacing();
+				draw_status_row("Auto block", cvars::misc.auto_block != 0);
+				draw_status_row("Auto boost", cvars::misc.auto_boost != 0);
+				draw_status_row("Block MOTD", cvars::misc.motd_block != 0);
+				draw_status_row("Sandbox mode", cvars::misc.sandbox_enabled != 0);
+				draw_status_row("SteamID spoofer", cvars::misc.steamid_spoofer != 0);
+				draw_status_row("Game speed", cvars::misc.speed_enabled != 0);
+			}, true);
 		}
 		else
 		{
-			panel("Theme & Colors", a, ImVec2(ImMin(content_w, 420.f), 280.f), [&]()
+			panel("Theme & Colors", a, ImVec2(panel_w, 280.f), [&]()
 			{
 				static float col[4] = { accent.x, accent.y, accent.z, accent.w };
 				if (components::color_edit("Accent Color", col))
@@ -907,8 +1198,8 @@ components::keybind("Auto boost key", &cvars::misc.auto_boost_key);
 				ImGui::Spacing();
 				if (components::button("Pink / Rose (Default)", ImVec2(-1, 24)))
 				{
-					components::set_accent_color(ImVec4(0.76f, 0.60f, 0.64f, 1.f));
-					col[0] = 0.76f; col[1] = 0.60f; col[2] = 0.64f; col[3] = 1.f;
+					components::set_accent_color(ImVec4(1.0f, 0.30f, 0.62f, 1.f));
+					col[0] = 1.0f; col[1] = 0.30f; col[2] = 0.62f; col[3] = 1.f;
 				}
 				if (components::button("Purple / Violet", ImVec2(-1, 24)))
 				{
@@ -926,6 +1217,37 @@ components::keybind("Auto boost key", &cvars::misc.auto_boost_key);
 					col[0] = 0.40f; col[1] = 0.85f; col[2] = 0.30f; col[3] = 1.f;
 				}
 			});
+			panel("Accent Preview", b, ImVec2(panel_w, 280.f), [&]()
+			{
+				static const ImVec4 presets[] =
+				{
+					ImVec4(1.00f, 0.30f, 0.62f, 1.f), ImVec4(0.75f, 0.35f, 0.95f, 1.f),
+					ImVec4(0.20f, 0.65f, 0.95f, 1.f), ImVec4(0.40f, 0.85f, 0.30f, 1.f),
+					ImVec4(0.95f, 0.75f, 0.25f, 1.f), ImVec4(0.95f, 0.30f, 0.30f, 1.f),
+				};
+				ImDrawList* dl = ImGui::GetWindowDrawList();
+				ImVec2 cur = ImGui::GetCursorScreenPos();
+				const float avail_w = ImGui::GetContentRegionAvail().x;
+				const float sw = (avail_w - 10.f) / 3.f;
+				for (int i = 0; i < 6; ++i)
+				{
+					const int cx = i % 3;
+					const int cy = i / 3;
+					const ImVec2 c0 = cur + ImVec2(static_cast<float>(cx) * (sw + 5.f), static_cast<float>(cy) * 40.f);
+					const ImVec2 c1 = c0 + ImVec2(sw, 34.f);
+					const float pulse = 0.5f + 0.5f * ImSin(static_cast<float>(ImGui::GetTime()) * 1.6f + static_cast<float>(i));
+					dl->AddRectFilled(c0 - ImVec2(2.f, 2.f), c1 + ImVec2(2.f, 2.f), ImColor(presets[i].x, presets[i].y, presets[i].z, 0.10f + 0.18f * pulse), 9.f);
+					dl->AddRectFilled(c0, c1, ImColor(presets[i]), 7.f);
+					dl->AddRect(c0, c1, ImColor(1.f, 1.f, 1.f, 0.12f), 7.f);
+				}
+				ImGui::Dummy(ImVec2(avail_w, 84.f));
+				ImGui::Spacing();
+				draw_status_row("Neon accent active", true);
+				ImGui::Spacing();
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.60f, 0.60f, 0.68f, 1.f));
+				ImGui::TextWrapped("Swatches preview the available accents. Pick one on the left to apply it instantly.");
+				ImGui::PopStyleColor();
+			}, true);
 		}
 	}
 		else if (m_iSelectedTab == CONFIGS)

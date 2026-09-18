@@ -7,7 +7,7 @@
 
 namespace components
 {
-    static ImVec4 g_AccentColor = ImVec4(0.76f, 0.60f, 0.64f, 1.0f);
+    static ImVec4 g_AccentColor = ImVec4(1.0f, 0.30f, 0.62f, 1.0f);
     static std::unordered_map<ImGuiID, float> g_AnimMap;
     static ImGuiID g_WaitingKeyId = 0;
     static int g_WaitingKeyFrame = 0;
@@ -183,6 +183,8 @@ namespace components
 
         // Draw checkbox box
         window->DrawList->AddRectFilled(check_bb.Min, check_bb.Max, ImColor(current_bg), 3.0f);
+        if (anim > 0.02f)
+            window->DrawList->AddRect(check_bb.Min - ImVec2(2, 2), check_bb.Max + ImVec2(2, 2), ImColor(g_AccentColor.x, g_AccentColor.y, g_AccentColor.z, 0.35f * anim), 5.0f, 15, 1.5f);
         window->DrawList->AddRect(check_bb.Min, check_bb.Max, ImColor(border_col), 3.0f);
 
         // Draw animated checkmark
@@ -269,8 +271,12 @@ namespace components
                 ? ImColor(g_AccentColor) 
                 : (bind_hovered ? ImColor(220, 220, 225) : ImColor(130, 130, 140));
 
-            window->DrawList->AddRectFilled(bind_bb.Min, bind_bb.Max, ImColor(btn_bg), 3.0f);
-            window->DrawList->AddRect(bind_bb.Min, bind_bb.Max, is_waiting ? ImColor(g_AccentColor) : ImColor(45, 45, 52), 3.0f);
+            if (is_waiting)
+                window->DrawList->AddRect(bind_bb.Min - ImVec2(3.f, 3.f), bind_bb.Max + ImVec2(3.f, 3.f), ImColor(g_AccentColor.x, g_AccentColor.y, g_AccentColor.z, 0.22f), 9.0f, 15, 4.0f);
+            else if (bind->keynum > 0)
+                window->DrawList->AddRect(bind_bb.Min - ImVec2(1.f, 1.f), bind_bb.Max + ImVec2(1.f, 1.f), ImColor(g_AccentColor.x, g_AccentColor.y, g_AccentColor.z, 0.12f), 8.0f, 15, 1.5f);
+            window->DrawList->AddRectFilled(bind_bb.Min, bind_bb.Max, ImColor(btn_bg), 7.0f);
+            window->DrawList->AddRect(bind_bb.Min, bind_bb.Max, is_waiting ? ImColor(g_AccentColor) : ImColor(45, 45, 52), 7.0f);
 
             const ImVec2 txt_sz = ImGui::CalcTextSize(bind_buf);
             const ImVec2 txt_pos(bind_bb.Min.x + (bind_btn_w - txt_sz.x) * 0.5f, bind_bb.Min.y + (bind_h - txt_sz.y) * 0.5f);
