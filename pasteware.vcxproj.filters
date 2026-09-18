@@ -523,7 +523,7 @@
     <ClInclude Include="src\framework.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="src\hpp.h">
+    <ClInclude Include="src\runtime.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\targetver.h">
@@ -924,7 +924,7 @@
     <ClCompile Include="src\framework.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\hpp.cpp">
+    <ClCompile Include="src\runtime.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="includes\ImGui\imgui.cpp">
@@ -1023,9 +1023,6 @@
     <ClCompile Include="src\features\miscellaneous\miscellaneous.cpp">
       <Filter>src\features\miscellaneous</Filter>
     </ClCompile>
-    <ClCompile Include="src\overlay\menu\menu_draw.cpp">
-      <Filter>src\overlay\menu</Filter>
-    </ClCompile>
 	<ClCompile Include="src\overlay\menu\menu_primordial.cpp">
 	  <Filter>src\overlay\menu</Filter>
 	</ClCompile>
@@ -1070,9 +1067,6 @@
     </ClCompile>
     <ClCompile Include="src\features\sound\sound.cpp">
       <Filter>src\features\sound</Filter>
-    </ClCompile>
-    <ClCompile Include="src\overlay\menu\menu_draw_visuals.cpp">
-      <Filter>src\overlay\menu</Filter>
     </ClCompile>
     <ClCompile Include="src\world\hud_player_info.cpp">
       <Filter>src\world</Filter>
@@ -1136,12 +1130,6 @@
     </ClCompile>
     <ClCompile Include="includes\VmtHook\VmtHook.cpp">
       <Filter>includes\VmtHook</Filter>
-    </ClCompile>
-    <ClCompile Include="src\overlay\menu\menu_draw_rage.cpp">
-      <Filter>src\overlay\menu</Filter>
-    </ClCompile>
-    <ClCompile Include="src\overlay\menu\menu_draw_legit.cpp">
-      <Filter>src\overlay\menu</Filter>
     </ClCompile>
     <ClCompile Include="includes\ImGui\imgui_demo.cpp">
       <Filter>includes\ImGui</Filter>
