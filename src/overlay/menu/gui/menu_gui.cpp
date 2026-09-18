@@ -1,4 +1,7 @@
+#include "menu_gui.h"
 #include "framework.h"
+#include "overlay/font_atlas.h"
+#include "components.h"
 
 CMenuGui::CMenuGui() 
 	: m_pPopupModal(std::make_unique<CMenuPopupModal>())
@@ -121,15 +124,41 @@ void CMenuGui::TabBackground()
 	auto p = GImGui->CurrentWindow->Pos;
 	auto s = GImGui->CurrentWindow->Size;
 	auto d = GImGui->CurrentWindow->DrawList;
+	ImVec4 accent = components::get_accent_color();
+
+	// Main background and panels
 	d->AddRectFilled(p, p + s, ImColor(27, 27, 29), 9.f);
 	d->AddRectFilled(p, p + ImVec2(s.x, 56.f), ImColor(39, 39, 41), 9.f, ImDrawCornerFlags_Top);
 	d->AddRectFilled(p + ImVec2(0.f, s.y - 71.f), p + s, ImColor(39, 39, 41), 9.f, ImDrawCornerFlags_Bot);
 	d->AddRectFilled(p + ImVec2(0.f, 56.f), p + ImVec2(145.f, s.y - 71.f), ImColor(31, 31, 33));
 	d->AddLine(p + ImVec2(145.f, 56.f), p + ImVec2(145.f, s.y - 71.f), ImColor(47, 47, 49));
 	d->AddRect(p, p + s, ImColor(49, 49, 51), 9.f);
-	d->AddLine(p + ImVec2(0.f, 55.f), p + ImVec2(s.x, 55.f), ImColor(193, 154, 164));
-	d->AddLine(p + ImVec2(0.f, s.y - 71.f), p + ImVec2(s.x, s.y - 71.f), ImColor(193, 154, 164));
-	d->AddText(g_pPrimTextFont, 19.f, p + ImVec2(24.f, 18.f), ImColor(232, 232, 234), "pasteware");
+
+	// Theme-driven separating lines with subtle accent glow
+	d->AddLine(p + ImVec2(0.f, 55.f), p + ImVec2(s.x, 55.f), ImColor(accent));
+	d->AddLine(p + ImVec2(0.f, s.y - 71.f), p + ImVec2(s.x, s.y - 71.f), ImColor(accent));
+
+	// Animated shimmering text for "pasteware" title
+	const char* title = "pasteware";
+	const float time = static_cast<float>(ImGui::GetTime());
+	float cur_x = p.x + 24.f;
+	const float font_size = 19.f;
+
+	for (int ci = 0; title[ci] != '\0'; ++ci)
+	{
+		char ch[2] = { title[ci], '\0' };
+		const float wave = sinf(time * 3.5f + static_cast<float>(ci) * 0.45f) * 0.5f + 0.5f;
+		const ImVec4 letter_col = ImLerp(accent, ImVec4(1.0f, 1.0f, 1.0f, 1.0f), wave);
+
+		if (g_pPrimTextFont)
+			d->AddText(g_pPrimTextFont, font_size, ImVec2(cur_x, p.y + 18.f), ImColor(letter_col), ch);
+		else
+			d->AddText(ImVec2(cur_x, p.y + 18.f), ImColor(letter_col), ch);
+
+		const ImVec2 ch_size = g_pPrimTextFont ? g_pPrimTextFont->CalcTextSizeA(font_size, FLT_MAX, 0.f, ch) : ImGui::CalcTextSize(ch);
+		cur_x += ch_size.x;
+	}
+
 	static char search[64];
 	ImGui::SetCursorPos(ImVec2(s.x - 188.f, 15.f));
 	ImGui::PushItemWidth(150.f);
@@ -145,7 +174,7 @@ bool CMenuGui::TabList(std::vector<TabWidgetsData>& data, int& selected, int& ho
 	const float width = data.size() * button_size.x + (data.size() - 1) * gap;
 	const float x = (GImGui->CurrentWindow->Size.x - width) * 0.5f;
 	const float y = GImGui->CurrentWindow->Size.y - 61.f;
-	const char icon[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g' };
+	static const char icon_chars[] = { 'A', 'B', 'E', 'C', 'F', 'D', 'G' };
 
 	ImGui::SetCursorPos(ImVec2(x, y));
 
@@ -155,8 +184,7 @@ bool CMenuGui::TabList(std::vector<TabWidgetsData>& data, int& selected, int& ho
 		const bool pressed_button = ImGui::InvisibleButton(id.c_str(), button_size);
 		const ImVec2 min = ImGui::GetItemRectMin();
 		const ImVec2 max = ImGui::GetItemRectMax();
-		const ImVec2 icon_size = g_pPrimIconFont->CalcTextSizeA(16.f, FLT_MAX, 0.f, &icon[i], &icon[i] + 1);
-		const ImVec2 text_size = g_pPrimTextFont->CalcTextSizeA(12.f, FLT_MAX, 0.f, data[i].label.c_str());
+		const ImVec2 text_size = g_pPrimTextFont ? g_pPrimTextFont->CalcTextSizeA(12.f, FLT_MAX, 0.f, data[i].label.c_str()) : ImGui::CalcTextSize(data[i].label.c_str());
 		const bool active = selected == static_cast<int>(i);
 		const bool hot = ImGui::IsItemHovered();
 		const ImColor color = active ? ImColor(242, 242, 244) : hot ? ImColor(187, 187, 190) : ImColor(132, 132, 136);
@@ -165,7 +193,17 @@ bool CMenuGui::TabList(std::vector<TabWidgetsData>& data, int& selected, int& ho
 			GImGui->CurrentWindow->DrawList->AddCircleFilled(center, 17.f, ImColor(66, 53, 58));
 		else if (hot)
 			GImGui->CurrentWindow->DrawList->AddCircleFilled(center, 17.f, ImColor(47, 47, 50));
-		GImGui->CurrentWindow->DrawList->AddText(g_pPrimIconFont, 16.f, ImVec2(center.x - icon_size.x * 0.5f, min.y + 10.f), color, &icon[i], &icon[i] + 1);
+
+		if (i == 6)
+		{
+			const char* con_txt = ">_";
+			const ImVec2 con_sz = ImGui::CalcTextSize(con_txt);
+			GImGui->CurrentWindow->DrawList->AddText(ImVec2(center.x - con_sz.x * 0.5f, center.y - con_sz.y * 0.5f), color, con_txt);
+		}
+		else
+		{
+			render::font_icons.draw_icon(GImGui->CurrentWindow->DrawList, icon_chars[i], ImVec2(center.x - 9.f, min.y + 9.f), 18.f, color);
+		}
 		GImGui->CurrentWindow->DrawList->AddText(g_pPrimTextFont, 12.f, ImVec2((min.x + max.x - text_size.x) * 0.5f, min.y + 33.f), color, data[i].label.c_str());
 
 		if (pressed_button)
