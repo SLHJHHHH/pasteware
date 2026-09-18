@@ -286,6 +286,8 @@ bool CMenuGui::TabFeaturesList(std::vector<TabWidgetsData>& data, int& selected,
 	ImVec2 button_size = ImVec2(GImGui->CurrentWindow->Size.x / data.size(), 32);
 	ImVec4 button_color = GImGui->Style.Colors[ImGuiCol_ChildBg];
 	ImVec4 normal_text_color = GImGui->Style.Colors[ImGuiCol_FrameBgHovered];
+	const ImVec4 accent = components::get_accent_color();
+	const float time = static_cast<float>(ImGui::GetTime());
 
 	bool changed = false;
 
@@ -316,6 +318,15 @@ bool CMenuGui::TabFeaturesList(std::vector<TabWidgetsData>& data, int& selected,
 		else
 		{
 			pressed_button = ImGui::ButtonTabs(data[i].label.c_str(), button_size);
+		}
+
+		if (selected == static_cast<int>(i))
+		{
+			const ImVec2 tmin = ImGui::GetItemRectMin();
+			const ImVec2 tmax = ImGui::GetItemRectMax();
+			const float pulse = 0.5f + 0.5f * sinf(time * 2.4f + static_cast<float>(i));
+			ImDrawList* dl = GImGui->CurrentWindow->DrawList;
+			dl->AddRectFilled(tmin + ImVec2(6.f, tmax.y - tmin.y - 3.f), ImVec2(tmax.x - 6.f, tmax.y - tmin.y - 1.f), ImColor(accent.x, accent.y, accent.z, 0.45f + 0.4f * pulse), 1.f);
 		}
 
 		if (pressed_button)
