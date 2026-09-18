@@ -126,44 +126,69 @@ void CMenuGui::TabBackground()
 	auto s = GImGui->CurrentWindow->Size;
 	auto d = GImGui->CurrentWindow->DrawList;
 	ImVec4 accent = components::get_accent_color();
-
-	// Main background and panels
-	d->AddRectFilled(p, p + s, ImColor(27, 27, 29), 9.f);
-	d->AddRectFilled(p, p + ImVec2(s.x, 56.f), ImColor(39, 39, 41), 9.f, ImDrawCornerFlags_Top);
-	d->AddRectFilled(p + ImVec2(0.f, s.y - 71.f), p + s, ImColor(39, 39, 41), 9.f, ImDrawCornerFlags_Bot);
-	d->AddRectFilled(p + ImVec2(0.f, 56.f), p + ImVec2(145.f, s.y - 71.f), ImColor(31, 31, 33));
-	d->AddLine(p + ImVec2(145.f, 56.f), p + ImVec2(145.f, s.y - 71.f), ImColor(47, 47, 49));
-	d->AddRect(p, p + s, ImColor(49, 49, 51), 9.f);
-
-	// Theme-driven separating lines with subtle accent glow
-	d->AddLine(p + ImVec2(0.f, 55.f), p + ImVec2(s.x, 55.f), ImColor(accent));
-	d->AddLine(p + ImVec2(0.f, s.y - 71.f), p + ImVec2(s.x, s.y - 71.f), ImColor(accent));
-
-	// Animated shimmering text for "pasteware" title
-	const char* title = "pasteware";
-	const float time = static_cast<float>(ImGui::GetTime());
-	float cur_x = p.x + 24.f;
-	const float font_size = 19.f;
-
-	for (int ci = 0; title[ci] != '\0'; ++ci)
+	float t = static_cast<float>(ImGui::GetTime());
+	const float round = 12.f;
+	d->AddRectFilled(p, p + s, ImColor(18, 18, 26), round);
+	d->AddRectFilledMultiColor(p + ImVec2(round, round), p + ImVec2(s.x - round, 52.f), ImColor(58, 30, 50), ImColor(30, 24, 48), ImColor(30, 24, 48), ImColor(58, 30, 50));
+	d->AddRectFilled(p + ImVec2(0.f, s.y - 71.f), p + s, ImColor(30, 30, 38), round, ImDrawCornerFlags_Bot);
+	d->AddRectFilled(p + ImVec2(0.f, 56.f), p + ImVec2(145.f, s.y - 71.f), ImColor(24, 24, 32));
+	d->AddLine(p + ImVec2(145.f, 56.f), p + ImVec2(145.f, s.y - 71.f), ImColor(46, 42, 60));
+	d->AddRect(p, p + s, ImColor(52, 46, 70), round);
+	ImVec2 logo0 = p + ImVec2(12.f, 13.f);
+	ImVec2 logo1 = logo0 + ImVec2(30.f, 30.f);
+	d->AddRectFilled(logo0 - ImVec2(3.f, 3.f), logo1 + ImVec2(3.f, 3.f), ImColor(255, 48, 120, 28), 9.f);
+	d->AddRectFilled(logo0, logo1, ImColor(255, 48, 120, 235), 8.f);
+	d->AddRect(logo0, logo1, ImColor(255, 255, 255, 40), 8.f);
+	if (g_pPrimTextFont)
 	{
-		char ch[2] = { title[ci], '\0' };
-		const float wave = sinf(time * 3.5f + static_cast<float>(ci) * 0.45f) * 0.5f + 0.5f;
-		const ImVec4 letter_col = ImLerp(accent, ImVec4(1.0f, 1.0f, 1.0f, 1.0f), wave);
-
-		if (g_pPrimTextFont)
-			d->AddText(g_pPrimTextFont, font_size, ImVec2(cur_x, p.y + 18.f), ImColor(letter_col), ch);
-		else
-			d->AddText(ImVec2(cur_x, p.y + 18.f), ImColor(letter_col), ch);
-
-		const ImVec2 ch_size = g_pPrimTextFont ? g_pPrimTextFont->CalcTextSizeA(font_size, FLT_MAX, 0.f, ch) : ImGui::CalcTextSize(ch);
-		cur_x += ch_size.x;
+		d->AddText(g_pPrimTextFont, 15.f, logo0 + ImVec2(7.f, 5.f), ImColor(255, 255, 255), "pw");
 	}
-
-	ImGui::SetCursorPos(ImVec2(s.x - 188.f, 15.f));
-	ImGui::PushItemWidth(150.f);
+	else
+	{
+		d->AddText(logo0 + ImVec2(7.f, 6.f), ImColor(255, 255, 255), "pw");
+	}
+	float pulse = 0.5f + 0.5f * sinf(t * 2.4f);
+	d->AddCircle(logo0 + ImVec2(24.f, 6.f), 2.f + pulse, ImColor(255, 90, 160, 140), 10, 1.2f);
+	const char* w1 = "paste";
+	const char* w2 = "ware";
+	float tx = p.x + 50.f;
+	float ty = p.y + 18.f;
+	float fs = 19.f;
+	if (g_pPrimTextFont)
+	{
+		d->AddText(g_pPrimTextFont, fs, ImVec2(tx, ty), ImColor(255, 255, 255), w1);
+		ImVec2 s1 = g_pPrimTextFont->CalcTextSizeA(fs, FLT_MAX, 0.f, w1);
+		d->AddText(g_pPrimTextFont, fs, ImVec2(tx + s1.x, ty), ImColor(accent), w2);
+	}
+	else
+	{
+		d->AddText(ImVec2(tx, ty), ImColor(255, 255, 255), w1);
+		ImVec2 s1 = ImGui::CalcTextSize(w1);
+		d->AddText(ImVec2(tx + s1.x, ty), ImColor(accent), w2);
+	}
+	ImVec2 sb0 = ImVec2(p.x + s.x - 200.f, p.y + 14.f);
+	ImVec2 sb1 = sb0 + ImVec2(176.f, 28.f);
+	d->AddRectFilled(sb0 - ImVec2(2.f, 2.f), sb1 + ImVec2(2.f, 2.f), ImColor(255, 48, 120, 22), 9.f);
+	d->AddRectFilled(sb0, sb1, ImColor(16, 16, 22), 8.f);
+	d->AddRect(sb0, sb1, ImColor(255, 255, 255, 22), 8.f);
+	ImVec2 lc = sb0 + ImVec2(17.f, 14.f);
+	d->AddCircle(lc, 5.5f, ImColor(255, 120, 180, 220), 16, 1.6f);
+	d->AddLine(lc + ImVec2(3.5f, 3.5f), lc + ImVec2(7.5f, 7.5f), ImColor(255, 120, 180, 220), 1.6f);
+	ImGui::SetCursorPos(ImVec2(s.x - 169.f, 15.f));
+	ImGui::PushItemWidth(133.f);
+	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.f, 0.f, 0.f, 0.f));
+	ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
+	ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0.f, 0.f, 0.f, 0.f));
+	ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.f, 0.f, 0.f, 0.f));
+	ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.f);
 	ImGui::InputTextWithHint("##search", "Search...", m_search, sizeof(m_search));
+	ImGui::PopStyleVar();
+	ImGui::PopStyleColor(4);
 	ImGui::PopItemWidth();
+	float glow_a = 0.55f + 0.35f * pulse;
+	d->AddLine(p + ImVec2(0.f, 55.f), p + ImVec2(s.x, 55.f), ImColor(255, 48, 120, (int)(90.f * glow_a)), 2.2f);
+	d->AddLine(p + ImVec2(0.f, 56.f), p + ImVec2(s.x, 56.f), ImColor(accent), 1.0f);
+	d->AddLine(p + ImVec2(0.f, s.y - 71.f), p + ImVec2(s.x, s.y - 71.f), ImColor(accent));
 }
 
 const char* CMenuGui::SearchText()
@@ -192,12 +217,23 @@ bool CMenuGui::TabList(std::vector<TabWidgetsData>& data, int& selected, int& ho
 		const ImVec2 text_size = g_pPrimTextFont ? g_pPrimTextFont->CalcTextSizeA(12.f, FLT_MAX, 0.f, data[i].label.c_str()) : ImGui::CalcTextSize(data[i].label.c_str());
 		const bool active = selected == static_cast<int>(i);
 		const bool hot = ImGui::IsItemHovered();
-		const ImColor color = active ? ImColor(242, 242, 244) : hot ? ImColor(187, 187, 190) : ImColor(132, 132, 136);
+		ImDrawList* dl = GImGui->CurrentWindow->DrawList;
+		const ImVec4 acc = components::get_accent_color();
+		const ImColor color = active ? ImColor(acc.x, acc.y, acc.z, 1.f) : hot ? ImColor(224, 224, 230) : ImColor(122, 122, 132);
 		const ImVec2 center((min.x + max.x) * 0.5f, min.y + 18.f);
 		if (active)
-			GImGui->CurrentWindow->DrawList->AddCircleFilled(center, 17.f, ImColor(66, 53, 58));
+		{
+			const float pulse = 0.5f + 0.5f * sinf(static_cast<float>(ImGui::GetTime()) * 2.2f + static_cast<float>(i));
+			dl->AddCircleFilled(center, 20.f, ImColor(acc.x, acc.y, acc.z, 0.10f + 0.08f * pulse), 40);
+			dl->AddCircleFilled(center, 17.f, ImColor(acc.x * 0.26f, acc.y * 0.22f, acc.z * 0.30f, 1.f), 40);
+			dl->AddCircle(center, 17.f, ImColor(acc.x, acc.y, acc.z, 0.55f + 0.25f * pulse), 40, 1.4f);
+			dl->AddRectFilled(ImVec2(min.x + 20.f, max.y - 3.f), ImVec2(max.x - 20.f, max.y - 1.f), ImColor(acc.x, acc.y, acc.z, 0.85f), 1.f);
+		}
 		else if (hot)
-			GImGui->CurrentWindow->DrawList->AddCircleFilled(center, 17.f, ImColor(47, 47, 50));
+		{
+			dl->AddCircleFilled(center, 17.f, ImColor(1.f, 1.f, 1.f, 0.06f), 40);
+			dl->AddCircle(center, 17.f, ImColor(1.f, 1.f, 1.f, 0.14f), 40, 1.2f);
+		}
 
 		if (i == 6)
 		{
