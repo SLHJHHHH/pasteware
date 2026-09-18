@@ -1,0 +1,1317 @@
+#include "framework.h"
+
+std::unique_ptr<CLegitBot> g_pLegitBot;
+
+namespace
+{
+	const char* g_szSmokeSpriteModels[] =
+	{
+		"sprites/steam1.spr",
+		"sprites/effects/steam01.spr",
+		"sprites/smoke.spr"
+	};
+
+	const int g_iSmokeSpriteModelCount = sizeof(g_szSmokeSpriteModels) / sizeof(g_szSmokeSpriteModels[0]);
+
+	class CSmokeTracker
+	{
+		struct Smoke_t
+		{
+			Vector m_vecOrigin;
+			float m_flDieTime;
+		};
+
+	public:
+		void Update(const TEMPENTITY* pTemp)
+		{
+			const double time = client_state->time;
+
+			for (auto it = m_dSmokes.begin(); it != m_dSmokes.end();)
+			{
+				if (it->m_flDieTime <= time)
+					it = m_dSmokes.erase(it);
+				else
+					++it;
+			}
+
+			if (!pTemp)
+				return;
+
+			if (pTemp->flags & FTENT_NOMODEL)
+				return;
+
+			const model_s* pModel = pTemp->entity.model;
+
+			if (!pModel || !pModel->name[0])
+				return;
+
+			bool bSmoke = false;
+
+			for (int i = 0; i < g_iSmokeSpriteModelCount; i++)
+			{
+				if (!_strnicmp(pModel->name, g_szSmokeSpriteModels[i], strlen(g_szSmokeSpriteModels[i])))
+				{
+					bSmoke = true;
+					break;
+				}
+			}
+
+			if (!bSmoke)
+				return;
+
+			Smoke_t smoke;
+
+			smoke.m_vecOrigin = Vector(pTemp->entity.origin[0], pTemp->entity.origin[1], pTemp->entity.origin[2]);
+			smoke.m_flDieTime = static_cast<float>(time) + (pTemp->die - client_state->time);
+
+			m_dSmokes.push_back(smoke);
+		}
+
+		std::deque<Smoke_t>& GetSmokes()
+		{
+			return m_dSmokes;
+		}
+
+	private:
+		std::deque<Smoke_t> m_dSmokes;
+	};
+
+	CSmokeTracker g_SmokeTracker;
+
+	float LegitHitboxWeight(int hitbox)
+	{
+		switch (hitbox)
+		{
+		case HITBOX_HEAD:
+			return (float)cvars::legitbot.target_weight_head;
+		case HITBOX_NECK:
+			return (float)cvars::legitbot.target_weight_neck;
+		case HITBOX_LOWER_CHEST:
+		case HITBOX_CHEST:
+		case HITBOX_UPPER_CHEST:
+			return (float)cvars::legitbot.target_weight_chest;
+		case HITBOX_STOMACH:
+			return (float)cvars::legitbot.target_weight_stomach;
+		case HITBOX_LEFT_UPPER_ARM:
+		case HITBOX_LEFT_HAND:
+		case HITBOX_LEFT_FOREARM:
+		case HITBOX_LEFT_WRIST:
+		case HITBOX_RIGHT_UPPER_ARM:
+		case HITBOX_RIGHT_HAND:
+		case HITBOX_RIGHT_FOREARM:
+		case HITBOX_RIGHT_WRIST:
+			return (float)cvars::legitbot.target_weight_arms;
+		default:
+			return (float)cvars::legitbot.target_weight_legs;
+		}
+	}
+}
+
+CLegitBot::CLegitBot()
+{
+	
+	m_flMinAngleDemoChecker = 1.f;
+	m_iStickyPlayer = -1;
+}
+
+CLegitBot::~CLegitBot()
+{
+	
+}
+
+void CLegitBot::Run(usercmd_s* cmd)
+{
+	m_iAimPlayer = -1;
+	m_iAimHitbox = -1;
+	m_flCurrentFOV = 0.f;
+	m_bFiredFirstBullet = false;
+	m_flFlashAlpha = 0.f;
+
+	QAngle QAngles(cmd->viewangles), QNewAngles;
+
+	QAngles.Normalize();
+
+	if (Game::IsConnected())
+	{
+		screenfade_t fade;
+
+		g_Engine.pfnGetScreenFade(&fade);
+
+		m_flFlashAlpha = static_cast<float>(fade.fadealpha);
+	}
+
+	if (g_Weapon.IsGun())
+	{
+		Aimbot(cmd);
+		StandaloneRecoilControl(cmd);
+		Trigger(cmd);
+		DesyncHelper(cmd);
+	}
+
+	if (cvars::legitbot.aim_demochecker_bypass && client_static->demorecording)
+	{
+		QAngle QNewAngles(cmd->viewangles);
+
+		if (m_flMinAngleDemoChecker == 1.f)
+		{
+			cmd->buttons &= ~IN_ATTACK;
+			QNewAngles = QAngles;
+		}
+		
+		if (~cmd->buttons & IN_ATTACK)
+		{
+			Game::MakeAngle(QNewAngles, cmd);
+
+			g_Engine.SetViewAngles(QNewAngles);
+		}
+	}
+	else
+		m_flMinAngleDemoChecker = 1.f;
+
+	QNewAngles = cmd->viewangles;
+
+	QNewAngles.Normalize();
+
+	if (cvars::legitbot.aim_demochecker_bypass && client_static->demorecording)
+	{
+		QAngle QDeltaAngles = QAngles.Delta360(QNewAngles);
+
+		float flAngle = DEFAULT_FOV * QDeltaAngles.x / g_Local->m_iFOV;
+
+		if (QDeltaAngles.x > 0.000001)
+		{
+			if (~cmd->buttons & IN_ATTACK)
+			{
+				if (m_flMinAngleDemoChecker > flAngle)
+					m_flMinAngleDemoChecker = flAngle;
+			}
+		}
+	}
+
+	if (cvars::legitbot.aim_write_demo_visible_only && client_static->demorecording && !cvars::legitbot.aim_mouse_event)
+	{
+		const float flDemoWriteAngle = m_flMinAngleDemoChecker;
+
+		if (flDemoWriteAngle != 1.f)
+		{
+			cmd->viewangles.x += flDemoWriteAngle;
+
+			if (cmd->viewangles.x > 89.f)
+				cmd->viewangles.x = 89.f;
+
+			if (cmd->viewangles.x < -89.f)
+				cmd->viewangles.x = -89.f;
+		}
+	}
+
+	if (cvars::legitbot.aim_pseudo_professional)
+	{
+		Vector vecForward;
+
+		QAngles.AngleVectors(&vecForward, NULL, NULL);
+
+		vecForward.Normalize();
+
+		g_Engine.SetViewAngles(QAngles);
+	}
+}
+
+void CLegitBot::DesyncHelper(usercmd_s* cmd)
+{
+	if (!cvars::legitbot.desync_helper)
+		return;
+
+	if (g_pGlobals->m_flGaitMovement)
+		return;
+
+	if (!g_Local->m_bIsOnGround)
+		return;
+
+	if (cmd->buttons & IN_ATTACK && g_Weapon.CanAttack())
+		return;
+
+	
+	
+	static bool bJitter = false;
+
+	if (!g_pMiscellaneous->m_iChokedCommands)
+		bJitter = !bJitter;
+
+	QAngle QTempAngles(0, g_pGlobals->m_flGaitYaw, 0), QTempAngles2(0, g_Local->m_flGaitYaw, 0), QDeltaAngles;
+
+	QTempAngles.Normalize();
+	QTempAngles2.Normalize();
+
+	QDeltaAngles = QTempAngles.Delta360(QTempAngles2);
+
+	
+	
+	if (QDeltaAngles.y < 45.f)
+		cmd->sidemove = bJitter ? pmove->maxspeed : -pmove->maxspeed;
+}
+
+bool CLegitBot::IsValidTarget(const int& i)
+{
+	if (i < 1 || i > client_state->maxclients)
+		return false;
+	if (g_Player[i]->m_bIsLocal)
+		return false;
+	if (!g_Player[i]->m_bIsConnected)
+		return false;
+	if (g_Player[i]->m_bIsDead)
+		return false;
+	if (!g_Player[i]->m_bIsInPVS)
+		return false;
+	if (!cvars::legitbot.friendly_fire && g_Player[i]->m_iTeamNum == g_Local->m_iTeamNum)
+		return false;
+	if (cvars::legitbot.aim_shoot_through_teammates)
+	{
+		physent_t* pPhysent = Physent::GetPhysent(i);
+
+		if (pPhysent && pPhysent->solid != SOLID_NOT)
+			Physent::SetSolid(i, SOLID_NOT);
+	}
+	return true;
+}
+
+bool CLegitBot::GetAdjustedOrigin(cl_entity_s* pGameEntity, const int& i, Vector& vecOut)
+{
+	vecOut = g_Player[i]->m_vecOrigin;
+	if (!cvars::legitbot.position_adjustment)
+	{
+		if (g_pMiscellaneous.get() && g_pMiscellaneous->m_bFakeLatencyActive)
+			Game::BacktrackPlayer(pGameEntity, -1, vecOut);
+		return true;
+	}
+	int best_lerp_msec = -1;
+	float best_fov = FLT_MAX;
+	Vector vecSrc(g_Local->m_vecEyePos);
+	QAngle q(g_Local->m_QAngles);
+	Vector vf;
+	q.AngleVectors(&vf, NULL, NULL);
+	vf.Normalize();
+	for (int lerp_msec = 0; lerp_msec <= 100; lerp_msec += 5)
+	{
+		Vector o;
+		if (!Game::BacktrackPlayer(pGameEntity, lerp_msec, o))
+			continue;
+		float f = vf.AngleBetween(o - vecSrc);
+		if (f < best_fov) { best_fov = f; best_lerp_msec = lerp_msec; }
+	}
+	if (best_lerp_msec != -1)
+	{
+		int lo = best_lerp_msec - 4; if (lo < 0) lo = 0;
+		int hi = best_lerp_msec + 4; if (hi > 100) hi = 100;
+		for (int lerp_msec = lo; lerp_msec <= hi; lerp_msec++)
+		{
+			Vector o;
+			if (!Game::BacktrackPlayer(pGameEntity, lerp_msec, o))
+				continue;
+			float f = vf.AngleBetween(o - vecSrc);
+			if (f < best_fov) { best_fov = f; best_lerp_msec = lerp_msec; }
+		}
+		const auto interp_amount = g_pMiscellaneous->GetInterpAmount(best_lerp_msec);
+		const auto lerp_final = (int)(interp_amount * 1000.0);
+		if (Game::BacktrackPlayer(pGameEntity, lerp_final, vecOut))
+		{
+			g_pMiscellaneous->m_bPositionAdjustmentActive = true;
+			g_pMiscellaneous->m_flPositionAdjustmentInterpAmount = interp_amount;
+			return true;
+		}
+	}
+	if (g_pMiscellaneous.get() && g_pMiscellaneous->m_bFakeLatencyActive)
+		Game::BacktrackPlayer(pGameEntity, -1, vecOut);
+	return true;
+}
+
+float CLegitBot::GetSmoothing(usercmd_s* cmd, const bool& bIsRCS)
+{
+	float flSmooth = bIsRCS ? cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_smooth
+		: ((cmd->buttons & IN_ATTACK) ? cvars::weapons[g_Weapon->m_iWeaponID].aim_smooth_in_attack
+			: cvars::weapons[g_Weapon->m_iWeaponID].aim_smooth_auto);
+	if (flSmooth < 1.f) flSmooth = 1.f;
+
+	if (cmd->buttons & IN_ATTACK || !cvars::legitbot.aim_recoil_disable_smooth_auto || cvars::weapons[g_Weapon->m_iWeaponID].aim_smooth_auto >= 1.f)
+	{
+		if (cvars::legitbot.aim_smooth_independence_fps && g_Local->m_flFrameTime > 0.f)
+			flSmooth *= (g_Local->m_flFrameTime / 0.01f);
+	}
+
+	if (flSmooth < 1.f) flSmooth = 1.f;
+	return flSmooth;
+}
+
+void CLegitBot::Aimbot(usercmd_s* cmd)
+{
+
+	if (cvars::legitbot.aim_key.keynum && !m_bAimState)
+		return;
+
+	if (cvars::legitbot.aim_recoil_no_mousemove_trigger && cvars::legitbot.aim_recoil_return_angles &&
+		g_Weapon->m_iShotsFired && (~cmd->buttons & IN_ATTACK))
+		return;
+
+	if (g_Weapon->m_fInReload > 0.f)
+		return;
+
+	if (g_Weapon->m_flNextAttack > 0.f)
+		return;
+
+	if (!g_Weapon->m_iClip)
+		return;
+
+	if (g_Weapon.IsPistol() && g_Weapon->m_iShotsFired)
+		return;
+
+	if (!cvars::weapons[g_Weapon->m_iWeaponID].aim_enabled)
+		return;
+
+	if (cvars::legitbot.aim_block_attack_after_kill && (client_state->time - g_Local->m_flLastKillTime) * 1000.0 <= cvars::legitbot.aim_block_attack_after_kill)
+		cmd->buttons &= ~IN_ATTACK;
+
+	if (cvars::legitbot.target_switch_delay && (client_state->time - g_Local->m_flLastKillTime) * 1000.0 <= cvars::legitbot.target_switch_delay)
+		return;
+
+	std::deque<int> hitboxes;
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].aim_hitboxes[0])
+		hitboxes.push_back(HITBOX_HEAD);
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].aim_hitboxes[1])
+		hitboxes.push_back(HITBOX_NECK);
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].aim_hitboxes[2])
+	{
+		hitboxes.push_back(HITBOX_LOWER_CHEST);
+		hitboxes.push_back(HITBOX_CHEST);
+		hitboxes.push_back(HITBOX_UPPER_CHEST);
+	}
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].aim_hitboxes[3])
+		hitboxes.push_back(HITBOX_STOMACH);
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].aim_hitboxes[4])
+	{
+		hitboxes.push_back(HITBOX_LEFT_UPPER_ARM);
+		hitboxes.push_back(HITBOX_LEFT_HAND);
+		hitboxes.push_back(HITBOX_LEFT_FOREARM);
+		hitboxes.push_back(HITBOX_LEFT_WRIST);
+		hitboxes.push_back(HITBOX_RIGHT_UPPER_ARM);
+		hitboxes.push_back(HITBOX_RIGHT_HAND);
+		hitboxes.push_back(HITBOX_RIGHT_FOREARM);
+		hitboxes.push_back(HITBOX_RIGHT_WRIST);
+	}
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].aim_hitboxes[5])
+	{
+		hitboxes.push_back(HITBOX_LEFT_FOOT);
+		hitboxes.push_back(HITBOX_LEFT_CALF);
+		hitboxes.push_back(HITBOX_LEFT_THIGH);
+		hitboxes.push_back(HITBOX_RIGHT_FOOT);
+		hitboxes.push_back(HITBOX_RIGHT_CALF);
+		hitboxes.push_back(HITBOX_RIGHT_THIGH);
+	}
+
+	if (hitboxes.empty())
+		return;
+
+	if (m_iStickyPlayer > 0 && !IsValidTarget(m_iStickyPlayer))
+		m_iStickyPlayer = -1;
+
+	bool bAutomaticFire = false;
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].aim_auto_fire && (~cmd->buttons & IN_ATTACK))
+	{
+		cmd->buttons |= IN_ATTACK;
+		bAutomaticFire = true;
+	}
+
+	bool bIsRCS = (g_Weapon->m_iShotsFired >= cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_start) && (cmd->buttons & IN_ATTACK)
+		&& ((client_state->punchangle[0] != 0.f && cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_pitch)
+			|| (client_state->punchangle[1] != 0.f && cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_yaw));
+
+	float flBestFOV = bIsRCS && cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_fov
+		? cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_fov
+		: cvars::weapons[g_Weapon->m_iWeaponID].aim_fov;
+	float flSmooth = GetSmoothing(cmd, bIsRCS);
+
+	if (flBestFOV <= 0.f)
+		return;
+
+	m_flCurrentFOV = 0.f;
+
+	Vector vecSrc(g_Local->m_vecEyePos), vecSpreadDir, vecAdjustedOrigin;
+
+	{
+		QAngle QAngles(cmd->viewangles);
+
+		QAngles[0] += client_state->punchangle[0] * 2.f;
+		QAngles[1] += client_state->punchangle[1] * 2.f;
+
+		QAngles.Normalize();
+
+		QAngles.AngleVectors(&vecSpreadDir, NULL, NULL);
+
+		vecSpreadDir.Normalize();
+	}
+
+	
+	float flInitialFOV = flBestFOV;
+	int iLockedSticky = m_iStickyPlayer;
+
+	for (int attempt = 0; attempt < 2; attempt++)
+	{
+		bool bLockedPass = (attempt == 0 && iLockedSticky > 0 && IsValidTarget(iLockedSticky));
+
+		if (attempt == 1)
+		{
+			if (m_iAimPlayer != -1)
+				break;
+
+			m_iStickyPlayer = -1;
+			flBestFOV = flInitialFOV;
+		}
+
+		for (int i = 1; i <= client_state->maxclients; i++)
+		{
+			if (bLockedPass && i != iLockedSticky)
+				continue;
+
+		if (!IsValidTarget(i))
+			continue;
+
+		cl_entity_s* pGameEntity = g_Engine.GetEntityByIndex(i);
+
+		if (!Game::IsValidEntity(pGameEntity))
+			continue;
+
+		Vector vecTempAdjustedOrigin;
+
+		if (!GetAdjustedOrigin(pGameEntity, i, vecTempAdjustedOrigin))
+			continue;
+
+		vecTempAdjustedOrigin += Game::PredictPlayer(i);
+
+		
+		if (cvars::legitbot.aim_smoke_check && IsSmokeBlocked(vecSrc, vecTempAdjustedOrigin))
+			continue;
+
+		
+		int best_hitbox = -1;
+		float best_hitbox_fov = flBestFOV;
+		Vector best_hitbox_pos;
+		for (auto hitbox : hitboxes)
+		{
+			Vector vecHitbox(vecTempAdjustedOrigin + g_Player[i]->m_vecHitbox[hitbox] - g_Player[i]->m_vecOrigin);
+			float flFOV = vecSpreadDir.AngleBetween(vecHitbox - vecSrc);
+
+			if (cvars::legitbot.aim_fov_scale_by_fps)
+			{
+				if (g_Local->m_flFrameTime > 0.f)
+					flFOV *= (g_Local->m_flFrameTime / 0.01f);
+			}
+
+			if (cvars::legitbot.aim_flashed_check && g_pLegitBot->IsFlashed())
+			{
+				if (flFOV <= cvars::legitbot.aim_flashed_check * 0.01f)
+					continue;
+			}
+
+			if (cvars::legitbot.target_aim_selection == 1)
+				flFOV *= (1.f - LegitHitboxWeight(hitbox) * 0.01f);
+
+			if (flFOV < best_hitbox_fov)
+			{
+				best_hitbox_fov = flFOV;
+				best_hitbox = hitbox;
+				best_hitbox_pos = vecHitbox;
+			}
+		}
+		
+		if (best_hitbox != -1)
+		{
+			bool bFound = false;
+			CorrectPhysentSolid(i);
+			Physent::SetOrigin(i, vecTempAdjustedOrigin);
+			pmtrace_s pmTrace;
+			g_Engine.pEventAPI->EV_SetTraceHull(HULL_POINT);
+			g_Engine.pEventAPI->EV_PlayerTrace(vecSrc, vecSrc + (best_hitbox_pos - vecSrc) * g_Weapon->m_flDistance, PM_NORMAL, -1, &pmTrace);
+			if (g_Engine.pEventAPI->EV_IndexFromTrace(&pmTrace) == g_Player[i]->m_iEntIndex)
+				bFound = true;
+			else if (cvars::weapons[g_Weapon->m_iWeaponID].aim_auto_penetration)
+			{
+				int iDamage = Game::TakeSimulatedDamage(vecSrc, best_hitbox_pos, Game::GetHitgroup(best_hitbox), i);
+				if (iDamage >= cvars::weapons[g_Weapon->m_iWeaponID].aim_auto_penetration_min_damage || iDamage > g_Player[i]->m_iHealth)
+					bFound = true;
+			}
+			if (bFound)
+			{
+				flBestFOV = best_hitbox_fov;
+				m_iAimPlayer = i;
+				m_iAimHitbox = best_hitbox;
+				vecAdjustedOrigin = vecTempAdjustedOrigin;
+			}
+		}
+		}
+	}
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].aim_auto_fire && bAutomaticFire && m_iAimPlayer == -1)
+		cmd->buttons &= ~IN_ATTACK;
+	else if (m_iAimPlayer != -1 && cvars::legitbot.aim_auto_scope && g_Weapon.IsSniper() && (cmd->buttons & IN_ATTACK))
+	{
+		if (g_Local->m_iFOV == DEFAULT_FOV)
+		{
+			cmd->buttons &= ~IN_ATTACK;
+			cmd->buttons |= IN_ATTACK2;
+		}
+		else
+		{
+			if (g_Weapon->m_flNextSecondaryAttack > 0.f)
+				cmd->buttons &= ~IN_ATTACK;
+		}
+	}
+
+	
+
+
+	static auto previous_time = client_state->time;
+
+	if (~cmd->buttons & IN_ATTACK)
+		previous_time = client_state->time;
+
+	if (m_iAimPlayer != -1)
+	{
+		assert(m_iAimPlayer >= 0 && m_iAimPlayer <= MAX_CLIENTS);
+		assert(m_iAimHitbox > -1 && m_iAimHitbox < HITBOX_MAX);
+
+		m_iStickyPlayer = m_iAimPlayer;
+		m_flCurrentFOV = flBestFOV;
+
+		const auto time_difference = abs(client_state->time - previous_time) * 1000.0;
+
+		if (cvars::weapons[g_Weapon->m_iWeaponID].aim_delay_before_firing && time_difference <= cvars::weapons[g_Weapon->m_iWeaponID].aim_delay_before_firing)
+			cmd->buttons &= ~IN_ATTACK;
+
+		if (cvars::weapons[g_Weapon->m_iWeaponID].aim_maximum_lock_on_time && time_difference > cvars::weapons[g_Weapon->m_iWeaponID].aim_maximum_lock_on_time)
+			return;
+
+		if (cvars::weapons[g_Weapon->m_iWeaponID].aim_delay_before_aiming && time_difference <= cvars::weapons[g_Weapon->m_iWeaponID].aim_delay_before_aiming)
+			return;
+
+		QAngle QAngles(cmd->viewangles), QAimAngles;
+
+		Vector vecAimForward, vecAimOrigin(g_Player[m_iAimPlayer]->m_vecHitbox[m_iAimHitbox]);
+
+		vecAimOrigin = vecAdjustedOrigin + vecAimOrigin - g_Player[m_iAimPlayer]->m_vecOrigin; 
+
+		vecAimForward = vecAimOrigin - vecSrc;
+
+		Math::VectorAngles(vecAimForward, QAimAngles);
+
+		if (cvars::weapons[g_Weapon->m_iWeaponID].aim_psilent_angle)
+		{
+			bool bTriggered = false;
+
+			if ((cvars::weapons[g_Weapon->m_iWeaponID].aim_psilent_triggers[0] && g_Local->m_bIsOnGround && !g_Local->m_flVelocity) ||
+				(cvars::weapons[g_Weapon->m_iWeaponID].aim_psilent_triggers[1] && g_Local->m_bIsOnGround) ||
+				(cvars::weapons[g_Weapon->m_iWeaponID].aim_psilent_triggers[2] && !g_Local->m_bIsOnGround))
+			{
+				bTriggered = true;
+
+				if (cvars::weapons[g_Weapon->m_iWeaponID].aim_psilent_tapping_mode && g_Weapon->m_iShotsFired)
+					bTriggered = false;
+
+				if (bTriggered && cvars::legitbot.aim_psilent_key.keynum && !m_bAimPerfectSilentState)
+					bTriggered = false;
+			}
+
+			if (bTriggered && g_Weapon.CanAttack() && (cvars::weapons[g_Weapon->m_iWeaponID].aim_psilent_type == 1 || (cmd->buttons & IN_ATTACK)))
+			{
+				QAngle QNewAngles(QAimAngles);
+
+				QNewAngles[0] -= client_state->punchangle[0] * 2.f;
+				QNewAngles[1] -= client_state->punchangle[1] * 2.f;
+
+				QNewAngles.Normalize();
+
+				g_pNoSpread->GetSpreadOffset(g_Weapon->m_iRandomSeed, 1, QNewAngles, QNewAngles, NOSPREAD_PITCH_YAW_ROLL);
+
+				bool bAttack = !DemoChecker(QAngles, QNewAngles, QNewAngles);
+				
+				if (bAttack && cvars::legitbot.aim_dont_shoot_in_shield && Game::TraceShield(vecSrc, vecAdjustedOrigin, QNewAngles, m_iAimPlayer))
+					bAttack = false;
+
+				if (bAttack)
+				{
+					QAngle QDifference = QNewAngles - QAngles;
+
+					QDifference.Normalize();
+
+					Vector vecDifference(QDifference);
+
+					if (vecDifference.Length() < cvars::weapons[g_Weapon->m_iWeaponID].aim_psilent_angle)
+					{
+						cmd->buttons |= IN_ATTACK;
+						Game::MakeAngle(QNewAngles, cmd);
+						Game::SendCommand(false);
+						return;
+					}
+				}
+			}
+		}
+		float flBaseFOV = bIsRCS ? cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_fov : cvars::weapons[g_Weapon->m_iWeaponID].aim_fov;
+		if (cvars::weapons[g_Weapon->m_iWeaponID].aim_smooth_scale_fov && flBaseFOV > 0.f && client_state->punchangle.IsZero2D() && flSmooth > 1.f)
+		{
+			QAngle QCurDelta = QAimAngles - QAngles;
+			QCurDelta.Normalize();
+			float flFOV = sqrtf(QCurDelta.x * QCurDelta.x + QCurDelta.y * QCurDelta.y);
+
+			if (flFOV > 0.f)
+			{
+				flSmooth = flSmooth - ((flFOV * (flSmooth / flBaseFOV) * cvars::weapons[g_Weapon->m_iWeaponID].aim_smooth_scale_fov) / 100.f);
+				if (flSmooth < 1.f)
+					flSmooth = 1.f;
+			}
+		}
+
+		if (flSmooth <= 0.f)
+			return;
+
+		QAngle QNewAngles(QAimAngles), QSmoothAngles;
+
+		if (bIsRCS)
+		{
+			QNewAngles[0] -= client_state->punchangle[0] * (cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_pitch / 50.f);
+			QNewAngles[1] -= client_state->punchangle[1] * (cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_yaw / 50.f);
+
+			QNewAngles.Normalize();
+		}
+
+		SmoothAimAngles(QAngles, QNewAngles, QSmoothAngles, flSmooth);
+
+		DemoChecker(QAngles, QSmoothAngles, QSmoothAngles);
+
+		WriteMouseMovement(cmd, QAngles, QSmoothAngles);
+
+		Game::MakeAngle(QSmoothAngles, cmd);
+
+		g_Engine.SetViewAngles(QSmoothAngles);
+
+		if (cvars::legitbot.aim_dont_shoot_in_shield && (cmd->buttons & IN_ATTACK) && Game::TraceShield(vecSrc, vecAdjustedOrigin, cmd->viewangles, m_iAimPlayer))
+			cmd->buttons &= ~IN_ATTACK;
+		else if (cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost && (cmd->buttons & IN_ATTACK) && g_Weapon.CanAttack())
+		{
+			assert(cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost >= 1 && cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost <= 4);
+
+			cmd->buttons &= ~IN_ATTACK;
+
+			QAngle QAngles(cmd->viewangles);
+
+			QAngles[0] += client_state->punchangle[0] * 2.f;
+			QAngles[1] += client_state->punchangle[1] * 2.f;
+
+			QAngles.Normalize();
+
+			Vector vecAccuracySpreadDir;
+
+			if (cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost == 1 || cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost == 3)
+			{
+				QAngles.AngleVectors(&vecAccuracySpreadDir, NULL, NULL);
+			}
+			else if (cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost == 2 || cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost == 4)
+			{
+				Vector vecForward, vecRight, vecUp, vecRandom;
+
+				QAngles.AngleVectors(&vecForward, &vecRight, &vecUp);
+
+				g_pNoSpread->GetSpreadXY(g_Weapon->m_iRandomSeed, 1, vecRandom);
+
+				vecAccuracySpreadDir = vecForward + (vecRight * vecRandom[0]) + (vecUp * vecRandom[1]);
+			}
+
+			vecAccuracySpreadDir.Normalize();
+
+			if (cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost == 1 || cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost == 2)
+			{
+				Vector vecMins = vecAdjustedOrigin + g_Player[m_iAimPlayer]->m_vecBoundBoxMins;
+				Vector vecMaxs = vecAdjustedOrigin + g_Player[m_iAimPlayer]->m_vecBoundBoxMaxs;
+
+				float flFraction = -1.f; int iHitSide = 0; bool bStartSolid = false;
+
+				if (Math::IntersectRayWithBox(vecSrc, vecAccuracySpreadDir * g_Weapon->m_flDistance, vecMins, vecMaxs, flFraction, iHitSide, bStartSolid))
+					cmd->buttons |= IN_ATTACK;
+			}
+			else if (cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost == 3 || cvars::weapons[g_Weapon->m_iWeaponID].aim_accuracy_boost == 4)
+			{
+				for (int hitbox = 0; hitbox < HITBOX_MAX; hitbox++)
+				{
+					if (hitbox == HITBOX_SHIELD)
+						continue;
+
+					matrix3x4_t matHitbox = g_Player[m_iAimPlayer]->m_matHitbox[hitbox];
+
+					Vector vecMatOrigin = vecAdjustedOrigin + matHitbox.GetOrigin() - g_Player[m_iAimPlayer]->m_vecOrigin;
+
+					matHitbox.SetOrigin(vecMatOrigin);
+
+					float flFraction = -1.f; int iHitSide = 0; bool bStartSolid = false;
+
+					if (Math::IntersectRayWithOBB(vecSrc, vecAccuracySpreadDir * g_Weapon->m_flDistance, matHitbox, g_Player[m_iAimPlayer]->m_vecOBBMin[hitbox], g_Player[m_iAimPlayer]->m_vecOBBMax[hitbox], flFraction, iHitSide, bStartSolid))
+					{
+						cmd->buttons |= IN_ATTACK;
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
+bool CLegitBot::IsFlashed()
+{
+	if (m_flFlashAlpha <= 0.f)
+		return false;
+
+	return true;
+}
+
+bool CLegitBot::IsSmokeBlocked(const Vector& vecSrc, const Vector& vecTarget)
+{
+	if (!g_SmokeTracker.GetSmokes().size())
+		return false;
+
+	for (const auto& smoke : g_SmokeTracker.GetSmokes())
+	{
+		Vector vecMins = smoke.m_vecOrigin - Vector(32.f, 32.f, 0.f);
+		Vector vecMaxs = smoke.m_vecOrigin + Vector(32.f, 32.f, 64.f);
+		float flFraction = -1.f;
+		int iHitSide = 0;
+		bool bStartSolid = false;
+
+		if (Math::IntersectRayWithBox(vecSrc, vecTarget - vecSrc, vecMins, vecMaxs, flFraction, iHitSide, bStartSolid))
+			return true;
+	}
+
+	return false;
+}
+
+bool CLegitBot::CheckVisibility(const int& i)
+{
+	if (!IsValidTarget(i))
+		return false;
+
+	cl_entity_s* pGameEntity = g_Engine.GetEntityByIndex(i);
+
+	if (!Game::IsValidEntity(pGameEntity))
+		return false;
+
+	Vector vecAdjustedOrigin;
+
+	if (!GetAdjustedOrigin(pGameEntity, i, vecAdjustedOrigin))
+		return false;
+
+	vecAdjustedOrigin += Game::PredictPlayer(i);
+
+	Vector vecSrc(g_Local->m_vecEyePos);
+
+	if (cvars::legitbot.aim_smoke_check && IsSmokeBlocked(vecSrc, vecAdjustedOrigin))
+		return false;
+
+	CorrectPhysentSolid(i);
+	Physent::SetOrigin(i, vecAdjustedOrigin);
+
+	pmtrace_s pmTrace;
+	g_Engine.pEventAPI->EV_SetTraceHull(HULL_POINT);
+	g_Engine.pEventAPI->EV_PlayerTrace(vecSrc, vecSrc + (vecAdjustedOrigin - vecSrc) * g_Weapon->m_flDistance, PM_NORMAL, -1, &pmTrace);
+
+	return (g_Engine.pEventAPI->EV_IndexFromTrace(&pmTrace) == g_Player[i]->m_iEntIndex);
+}
+
+void CLegitBot::StandaloneRecoilControl(usercmd_s* cmd)
+{
+	if (!cvars::legitbot.aim_recoil_return_angles)
+		return;
+
+	if (m_iAimPlayer != -1)
+		return;
+
+	{
+		static QAngle QReturnAngles = QAngle();
+
+		bool bIsRCS = (g_Weapon.IsRifle() || g_Weapon.IsMachineGun() || g_Weapon.IsSubMachineGun()) && (cmd->buttons & IN_ATTACK) && g_Weapon->m_iShotsFired >= cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_start && g_Weapon->m_iClip;
+		bool IsReturn = cvars::legitbot.aim_recoil_return_angles && (((~cmd->buttons & IN_ATTACK) && g_Weapon->m_iShotsFired) || g_Weapon->m_fInReload > 0.f || g_Weapon->m_flNextAttack > 0.f);
+
+		if ((~cmd->buttons & IN_ATTACK))
+			QReturnAngles.Clear();
+
+		if (!bIsRCS && !IsReturn)
+		{
+			if (~cmd->buttons & IN_ATTACK)
+				QReturnAngles.Clear();
+			return;
+		}
+
+		QAngle QAngles(cmd->viewangles), QPunchAngles, QAimAngles, QSmoothAngles;
+
+		if (cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_fov)
+		{
+			QPunchAngles[0] = client_state->punchangle[0] * (cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_pitch / 50.f);
+			QPunchAngles[1] = client_state->punchangle[1] * (cvars::weapons[g_Weapon->m_iWeaponID].aim_recoil_yaw / 50.f);
+		}
+
+		QAimAngles = QAngles + QReturnAngles - QPunchAngles;
+
+		QAimAngles.Normalize();
+
+		SmoothAimAngles(QAngles, QAimAngles, QSmoothAngles, GetSmoothing(cmd, true));
+
+		if ((bIsRCS || IsReturn) && (m_iAimPlayer == -1))
+		{
+			DemoChecker(QAngles, QSmoothAngles, QSmoothAngles);
+
+			Game::MakeAngle(QSmoothAngles, cmd);
+
+			g_Engine.SetViewAngles(QSmoothAngles);
+		}
+
+		QReturnAngles = QAimAngles - QSmoothAngles;
+		QReturnAngles.Normalize();
+	}
+}
+
+bool CLegitBot::DemoChecker(const QAngle& a_QPreviousAngles, const QAngle& a_QNewAngles, QAngle& a_QCorrectedAngles)
+{
+	bool bReturn = false;
+
+	if (cvars::legitbot.aim_demochecker_bypass && client_static->demorecording)
+	{
+		QAngle QPreviousAngles, QNewAngles, QDeltaAngles;
+
+		QPreviousAngles = a_QPreviousAngles;
+
+		QNewAngles = a_QNewAngles;
+
+		QDeltaAngles = QPreviousAngles.Delta360(QNewAngles);
+
+		if (QDeltaAngles.x > 0.000001)
+		{
+			if (0.007 > QDeltaAngles.x) 
+			{
+				a_QCorrectedAngles.x = QPreviousAngles.x;
+
+				bReturn = true;
+			}
+
+			{ 
+				float flAngle = DEFAULT_FOV * QDeltaAngles.x / g_Local->m_iFOV;
+
+				if (1.f != m_flMinAngleDemoChecker && m_flMinAngleDemoChecker - flAngle > 0.000001)
+				{
+					a_QCorrectedAngles.x = QPreviousAngles.x;
+
+					bReturn = true;
+				}
+			}
+		}
+
+		if (QDeltaAngles.y > 0.0 && QDeltaAngles.y < 0.000013) 
+		{
+			a_QCorrectedAngles.y = QPreviousAngles.y;
+
+			bReturn = true;
+		}
+	}
+
+	return bReturn;
+}
+
+void CLegitBot::Trigger(usercmd_s* cmd)
+{
+	if (cvars::legitbot.trigger_key.keynum && !m_bTriggerState)
+		return;
+
+	if (!g_Weapon.CanAttack())
+		return;
+
+	if (!cvars::weapons[g_Weapon->m_iWeaponID].trigger_enabled)
+		return;
+
+	if (cvars::legitbot.trigger_turn_off_after_first_bullet && m_bFiredFirstBullet)
+		return;
+
+	if (cvars::legitbot.trigger_shot_delay)
+	{
+		static float flLastTriggerTime = 0.f;
+
+		if ((client_state->time - flLastTriggerTime) * 1000.0 < cvars::legitbot.trigger_shot_delay)
+			return;
+
+		if (cmd->buttons & IN_ATTACK)
+			flLastTriggerTime = client_state->time;
+	}
+
+	if (cvars::legitbot.trigger_dynamic)
+	{
+		const float flDynamicFOV = 360.f / (float)max(g_Local->m_iFOV, 1);
+
+		if (m_bTriggerState)
+		{
+			if (!g_Engine.pfnGetCvarFloat("sensitivity"))
+				return;
+		}
+
+		if (g_Local->m_iFOV >= DEFAULT_FOV)
+			(void)flDynamicFOV;
+	}
+
+	if (cvars::legitbot.trigger_only_scoped && g_Weapon.IsSniper() && g_Local->m_iFOV == DEFAULT_FOV)
+		return;
+
+	if (cvars::legitbot.target_switch_delay && (client_state->time - g_Local->m_flLastKillTime) * 1000.0 <= cvars::legitbot.target_switch_delay)
+		return;
+
+	std::deque<int> hitboxes;
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].trigger_hitboxes[0])
+		hitboxes.push_back(HITBOX_HEAD);
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].trigger_hitboxes[1])
+		hitboxes.push_back(HITBOX_NECK);
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].trigger_hitboxes[2])
+	{
+		hitboxes.push_back(HITBOX_LOWER_CHEST);
+		hitboxes.push_back(HITBOX_CHEST);
+		hitboxes.push_back(HITBOX_UPPER_CHEST);
+	}
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].trigger_hitboxes[3])
+		hitboxes.push_back(HITBOX_STOMACH);
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].trigger_hitboxes[4])
+	{
+		hitboxes.push_back(HITBOX_LEFT_UPPER_ARM);
+		hitboxes.push_back(HITBOX_LEFT_HAND);
+		hitboxes.push_back(HITBOX_LEFT_FOREARM);
+		hitboxes.push_back(HITBOX_LEFT_WRIST);
+		hitboxes.push_back(HITBOX_RIGHT_UPPER_ARM);
+		hitboxes.push_back(HITBOX_RIGHT_HAND);
+		hitboxes.push_back(HITBOX_RIGHT_FOREARM);
+		hitboxes.push_back(HITBOX_RIGHT_WRIST);
+	}
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].trigger_hitboxes[5])
+	{
+		hitboxes.push_back(HITBOX_LEFT_FOOT);
+		hitboxes.push_back(HITBOX_LEFT_CALF);
+		hitboxes.push_back(HITBOX_LEFT_THIGH);
+		hitboxes.push_back(HITBOX_RIGHT_FOOT);
+		hitboxes.push_back(HITBOX_RIGHT_CALF);
+		hitboxes.push_back(HITBOX_RIGHT_THIGH);
+	}
+
+	if (hitboxes.empty())
+		return;
+
+	Vector vecSpreadDir, vecSrc(g_Local->m_vecEyePos);
+
+	QAngle QAngles(cmd->viewangles);
+
+	if (cvars::weapons[g_Weapon->m_iWeaponID].trigger_accuracy_boost == 1)
+	{
+		QAngles[0] += client_state->punchangle[0] * 2.f;
+		QAngles[1] += client_state->punchangle[1] * 2.f;
+
+		QAngles.Normalize();
+
+		QAngles.AngleVectors(&vecSpreadDir, NULL, NULL);
+
+		vecSpreadDir.Normalize();
+	}
+	else if (cvars::weapons[g_Weapon->m_iWeaponID].trigger_accuracy_boost == 2)
+	{
+		Vector vecForward, vecRight, vecUp, vecRandom;
+
+		QAngles[0] += client_state->punchangle[0] * 2.f;
+		QAngles[1] += client_state->punchangle[1] * 2.f;
+
+		QAngles.Normalize();
+
+		QAngles.AngleVectors(&vecForward, &vecRight, &vecUp);
+
+		g_pNoSpread->GetSpreadXY(g_Weapon->m_iRandomSeed, 1, vecRandom);
+
+		vecSpreadDir = vecForward + (vecRight * vecRandom[0]) + (vecUp * vecRandom[1]);
+
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		vecSpreadDir.Normalize();
+	}
+	else {
+		QAngles.Normalize();
+
+		QAngles.AngleVectors(&vecSpreadDir, NULL, NULL);
+
+		vecSpreadDir.Normalize();
+	}
+
+	for (int i = 1; i <= client_state->maxclients; i++)
+	{
+		cl_entity_s* pGameEntity = g_Engine.GetEntityByIndex(i);
+
+		if (!Game::IsValidEntity(pGameEntity))
+			continue;
+
+		if (g_Player[i]->m_bIsLocal)
+			continue;
+
+		if (!g_Player[i]->m_bIsConnected)
+			continue;
+
+		if (g_Player[i]->m_bIsDead)
+			continue;
+
+		if (!g_Player[i]->m_bIsInPVS)
+			continue;
+
+		if (!cvars::legitbot.friendly_fire && g_Player[i]->m_iTeamNum == g_Local->m_iTeamNum)
+			continue;
+
+		Vector vecTempAdjustedOrigin(g_Player[i]->m_vecOrigin);
+
+		if (cvars::legitbot.position_adjustment)
+		{
+			auto best_lerp_msec = -1;
+			auto best_fov = FLT_MAX;
+
+			for (int lerp_msec = 0; lerp_msec <= 100; lerp_msec++)
+			{
+				Vector vecTempOrigin;
+
+				if (Game::BacktrackPlayer(pGameEntity, lerp_msec, vecTempOrigin))
+				{
+					Vector vecForward = vecTempOrigin - vecSrc;
+
+					const auto fov = vecSpreadDir.AngleBetween(vecForward);
+
+					if (fov < best_fov)
+					{
+						best_lerp_msec = lerp_msec;
+						best_fov = fov;
+					}
+				}
+			}
+
+			if (best_lerp_msec != -1)
+			{
+				const auto interp_amount = g_pMiscellaneous->GetInterpAmount(best_lerp_msec);
+				const auto lerp_msec = (int)(interp_amount * 1000.0);
+
+				if (Game::BacktrackPlayer(pGameEntity, lerp_msec, vecTempAdjustedOrigin))
+				{
+					g_pMiscellaneous->m_bPositionAdjustmentActive = true;
+					g_pMiscellaneous->m_flPositionAdjustmentInterpAmount = interp_amount;
+				}
+			}
+			else if (g_pMiscellaneous.get() && g_pMiscellaneous->m_bFakeLatencyActive)
+				Game::BacktrackPlayer(pGameEntity, -1, vecTempAdjustedOrigin);
+		}
+		else if (g_pMiscellaneous.get() && g_pMiscellaneous->m_bFakeLatencyActive)
+			Game::BacktrackPlayer(pGameEntity, -1, vecTempAdjustedOrigin);
+
+		vecTempAdjustedOrigin += Game::PredictPlayer(i);
+
+		for (auto hitbox : hitboxes)
+		{
+			Vector vecMatOrigin, vecOBBMin, vecOBBMax;
+
+			matrix3x4_t matHitbox(g_Player[i]->m_matHitbox[hitbox]);
+
+			vecMatOrigin = vecTempAdjustedOrigin + matHitbox.GetOrigin() - g_Player[i]->m_vecOrigin;
+
+			matHitbox.SetOrigin(vecMatOrigin);
+
+			vecOBBMin = g_Player[i]->m_vecOBBMin[hitbox] * ([](int hb)->float { int g = (hb==HITBOX_HEAD)?0:(hb==HITBOX_NECK)?1:((hb==HITBOX_LOWER_CHEST||hb==HITBOX_CHEST||hb==HITBOX_UPPER_CHEST)?2:(hb==HITBOX_STOMACH)?3:((hb>=HITBOX_LEFT_UPPER_ARM&&hb<=HITBOX_RIGHT_WRIST)?4:5)); return cvars::legitbot.trigger_hitbox_scale[g]; })(hitbox) / 100.f;
+			vecOBBMax = g_Player[i]->m_vecOBBMax[hitbox] * ([](int hb)->float { int g = (hb==HITBOX_HEAD)?0:(hb==HITBOX_NECK)?1:((hb==HITBOX_LOWER_CHEST||hb==HITBOX_CHEST||hb==HITBOX_UPPER_CHEST)?2:(hb==HITBOX_STOMACH)?3:((hb>=HITBOX_LEFT_UPPER_ARM&&hb<=HITBOX_RIGHT_WRIST)?4:5)); return cvars::legitbot.trigger_hitbox_scale[g]; })(hitbox) / 100.f;
+
+			float flFraction = -1.f; int iHitSide = 0; bool bStartSolid = false;
+
+			if (Math::IntersectRayWithOBB(vecSrc, vecSpreadDir * g_Weapon->m_flDistance, matHitbox, vecOBBMin, vecOBBMax, flFraction, iHitSide, bStartSolid))
+			{
+				if (cvars::legitbot.trigger_accurate_traces)
+				{
+					bool bSkipHitbox = false;
+
+					for (int j = 0; j < HITBOX_MAX; j++)
+					{
+						if (j == hitbox)
+							continue;
+
+						if (j == HITBOX_SHIELD && !g_Player[i]->m_bHasShield)
+							continue;
+
+						matHitbox = g_Player[i]->m_matHitbox[j];
+
+						vecMatOrigin = vecTempAdjustedOrigin + matHitbox.GetOrigin() - g_Player[i]->m_vecOrigin;
+
+						matHitbox.SetOrigin(vecMatOrigin);
+
+						float flFraction2 = -1.f; int iHitSide2 = 0; bool bStartSolid2 = false;
+
+						if (Math::IntersectRayWithOBB(vecSrc, vecSpreadDir * g_Weapon->m_flDistance, matHitbox, g_Player[i]->m_vecOBBMin[j], g_Player[i]->m_vecOBBMax[j], flFraction2, iHitSide2, bStartSolid2))
+						{
+							if (flFraction2 <= flFraction)
+							{
+								bSkipHitbox = true;
+								break;
+							}
+						}
+					}
+
+					if (bSkipHitbox)
+						continue;
+				}
+
+				bool bAttack = false;
+
+				CorrectPhysentSolid(i);
+
+				Physent::SetOrigin(i, vecTempAdjustedOrigin);
+
+				pmtrace_t pmTrace;
+				g_Engine.pEventAPI->EV_SetTraceHull(HULL_POINT);
+				g_Engine.pEventAPI->EV_PlayerTrace(vecSrc, vecSrc + vecSpreadDir * g_Weapon->m_flDistance, PM_NORMAL, -1, &pmTrace);
+
+				if (g_Engine.pEventAPI->EV_IndexFromTrace(&pmTrace) == g_Player[i]->m_iEntIndex)
+					bAttack = true;
+				else if (cvars::weapons[g_Weapon->m_iWeaponID].trigger_auto_penetration)
+				{
+					int iDamage = Game::TakeSimulatedDamage(vecSrc, g_Player[i]->m_vecHitbox[hitbox], Game::GetHitgroup(hitbox), i);
+
+					if (iDamage >= cvars::weapons[g_Weapon->m_iWeaponID].trigger_auto_penetration_min_damage || iDamage > g_Player[i]->m_iHealth)
+						bAttack = true;
+				}
+
+				if (bAttack)
+				{
+					cmd->buttons |= IN_ATTACK;
+
+					if (cvars::legitbot.trigger_turn_off_after_first_bullet)
+						m_bFiredFirstBullet = true;
+
+					return;
+				}
+			}
+		}
+	}
+}
+
+void CLegitBot::CorrectPhysentSolid(const int& nPlayerID)
+{
+	assert(nPlayerID >= 1 && nPlayerID <= MAX_CLIENTS);
+
+	for (int i = 1; i <= client_state->maxclients; i++)
+	{
+		if (g_Player[i]->m_bIsLocal)
+			continue;
+
+		if (!g_Player[i]->m_bIsConnected)
+			continue;
+
+		if (g_Player[i]->m_bIsDead)
+			continue;
+
+		if (!g_Player[i]->m_bIsInPVS)
+			continue;
+
+		if (i == nPlayerID)
+		{
+			Physent::SetSolid(i, SOLID_BBOX);
+			continue;
+		}
+
+		if (!cvars::legitbot.friendly_fire && g_Player[i]->m_iTeamNum == g_Local->m_iTeamNum)
+			Physent::SetSolid(i, SOLID_BBOX);
+		else
+			Physent::SetSolid(i, SOLID_NOT);
+	}
+}
+
+void CLegitBot::SmoothAimAngles(const QAngle& QAngles, const QAngle& QAimAngles, QAngle& QNewAngles, const float& flSmoothing)
+{
+	assert(isfinite(flSmoothing));
+
+	if (flSmoothing <= 1.f)
+	{
+		QNewAngles = QAimAngles;
+		return;
+	}
+
+	QNewAngles = QAimAngles - QAngles;
+
+	QNewAngles.Normalize();
+
+	QNewAngles /= flSmoothing;
+
+	
+	
+
+	QNewAngles = QAngles + QNewAngles;
+
+	QNewAngles.Normalize();
+}
+
+void CLegitBot::OnTempEntity(const TEMPENTITY* pTemp)
+{
+	g_SmokeTracker.Update(pTemp);
+}
+
+void CLegitBot::WriteMouseMovement(usercmd_s* cmd, const QAngle& QAngles, const QAngle& QNewAngles)
+{
+	if (!cvars::legitbot.aim_mouse_event)
+		return;
+
+	if (cvars::legitbot.aim_demochecker_bypass && client_static->demorecording)
+		return;
+
+	QAngle QDeltaAngles = QNewAngles - QAngles;
+
+	QDeltaAngles.Normalize();
+
+	const float flSensitivity = g_Engine.pfnGetCvarFloat("sensitivity");
+	const float flPitch = g_Engine.pfnGetCvarFloat("m_pitch");
+	const float flYaw = g_Engine.pfnGetCvarFloat("m_yaw");
+	const float flScale = (flSensitivity * flPitch + flSensitivity * flYaw) * 0.5f;
+
+	if (flScale <= 0.f)
+		return;
+
+	QDeltaAngles.x /= flScale;
+	QDeltaAngles.y /= flScale;
+
+	const QAngle QOldAngles(cmd->viewangles);
+
+	QAngle QTargetAngles(QNewAngles.x, QNewAngles.y, QNewAngles.z);
+
+	Game::MakeAngle(QTargetAngles, cmd);
+
+	cmd->viewangles = QOldAngles;
+
+	cmd->viewangles[0] += QDeltaAngles.x;
+	cmd->viewangles[1] += QDeltaAngles.y;
+
+	cmd->viewangles.Normalize();
+}

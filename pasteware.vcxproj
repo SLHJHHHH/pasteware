@@ -188,7 +188,7 @@
     <ClCompile Include="src\framework.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\hpp.cpp" />
+    <ClCompile Include="src\runtime.cpp" />
     <ClCompile Include="src\math\qangle.cpp" />
     <ClCompile Include="src\math\vector.cpp" />
     <ClCompile Include="src\messages\enginemsg.cpp" />
@@ -202,11 +202,7 @@
     <ClCompile Include="src\overlay\menu\gui\menu_popup_modal.cpp" />
     <ClCompile Include="src\overlay\menu\gui\menu_themes.cpp" />
     <ClCompile Include="src\overlay\menu\menu.cpp" />
-    <ClCompile Include="src\overlay\menu\menu_draw.cpp" />
 	<ClCompile Include="src\overlay\menu\menu_primordial.cpp" />
-    <ClCompile Include="src\overlay\menu\menu_draw_legit.cpp" />
-    <ClCompile Include="src\overlay\menu\menu_draw_rage.cpp" />
-    <ClCompile Include="src\overlay\menu\menu_draw_visuals.cpp" />
     <ClCompile Include="src\overlay\notifications\notifications.cpp" />
     <ClCompile Include="src\renderer\drawlist.cpp" />
     <ClCompile Include="src\renderer\renderer.cpp" />
@@ -451,7 +447,7 @@
     <ClInclude Include="src\features\visuals\overlay\selection_players.h" />
     <ClInclude Include="src\features\visuals\visuals.h" />
     <ClInclude Include="src\framework.h" />
-    <ClInclude Include="src\hpp.h" />
+    <ClInclude Include="src\runtime.h" />
     <ClInclude Include="src\math\matrix3x4.h" />
     <ClInclude Include="src\math\qangle.h" />
     <ClInclude Include="src\math\vector.h" />
