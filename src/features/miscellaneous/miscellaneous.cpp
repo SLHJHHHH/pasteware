@@ -25,7 +25,7 @@ CMiscellaneous::CMiscellaneous()
 
 CMiscellaneous::~CMiscellaneous()
 {
-	// run code one time when you disconnected from server
+	
 }
 
 void CMiscellaneous::NameStealer()
@@ -69,7 +69,7 @@ void CMiscellaneous::NameStealer()
 
 			std::string nickname = nicknames[random];
 
-			// English to russian
+			
 			for (size_t j = 0; j < IM_ARRAYSIZE(english); j++)
 			{
 				auto pos = nickname.find(english[j]);
@@ -81,7 +81,7 @@ void CMiscellaneous::NameStealer()
 					break;
 				}
 			}
-			// Russian to english
+			
 			if (!replaced)
 			{
 				for (size_t j = 0; j < IM_ARRAYSIZE(russian); j++)
@@ -364,7 +364,7 @@ void CMiscellaneous::ChokedCommandsCounter()
 		previous_seq = client_static->netchan.outgoing_sequence;
 	}
 
-	//g_pEngine->Con_NPrintf(7, "g_pMiscellaneous->m_iChokedCommands: %i", g_pMiscellaneous->m_iChokedCommands);
+	
 }
 
 void CMiscellaneous::AutoReload(usercmd_s* cmd)

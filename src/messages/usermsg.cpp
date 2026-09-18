@@ -55,7 +55,7 @@ static bool UnHookUserMsg(const std::string& name)
 
 static int MSG_MOTD(const char* pszName, int iSize, void* pbuf)
 {
-	// Not forwarding the message keeps the MOTD window closed.
+	
 	if (!g_pGlobals->m_bIsUnloadingLibrary && cvars::misc.motd_block)
 		return 1;
 

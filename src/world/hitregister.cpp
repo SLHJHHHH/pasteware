@@ -107,41 +107,41 @@ bool CHitRegister::RegisterHit(int index, char* pszSoundFile)
 			if (pBaseInfo->m_iDamage <= g_Player[index]->m_iHealth)
 				g_Player[index]->m_iHealth -= pBaseInfo->m_iDamage;
 
-			//g_pNotifications->Push("Hit registration", Utils::FormatString("pBaseInfo->m_iDamage: %i", pBaseInfo->m_iDamage));
+			
 
-			/*if (pBaseInfo->m_iHitgroup == HITGROUP_STOMACH || pBaseInfo->m_iHitgroup == HITGROUP_CHEST)
-			{
-				Vector vecForward, vecPlayerForward;
+			
 
-				g_Local->m_QAngles.AngleVectors(&vecForward, NULL, NULL);
-				g_Player[index]->m_QAngles.AngleVectors(&vecPlayerForward, NULL, NULL);
 
-				vecForward.z = 0;
-				vecPlayerForward.z = 0;
 
-				vecForward.Normalize();
-				vecPlayerForward.Normalize();
 
-				if (vecPlayerForward.Dot2D(vecForward) > -0.8f)
-				{
-					float flRatio = 1.f;
 
-					if (pBaseInfo->m_iHitgroup == HITGROUP_STOMACH)
-					{
-						flRatio = 0.625f;
-					}
-					else
-					{
-						if (pBaseInfo->m_iHitboxNum == HITBOX_LOWER_CHEST ||
-							pBaseInfo->m_iHitboxNum == HITBOX_CHEST)
-						{
-							flRatio = 0.8f;
-						}
-					}
 
-					pBaseInfo->m_iDamage = static_cast<int>(pBaseInfo->m_iDamage / flRatio);
-				}
-			}*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		}
 	}
 
@@ -195,9 +195,9 @@ void CHitRegister::Update(usercmd_s* cmd)
 			vecSpreadDir.Normalize();
 
 			Vector vecEnd = g_Local->m_vecEyePos + vecSpreadDir * g_Weapon->m_flDistance;
-			// NOTE: wall clip via TextureHit reverted: called from CL_CreateMove Update(),
-			// engine EV_PlayerTrace here is unsafe on 4554 + Protector build (crash in
-			// C:\Games\Counter-Strike Build 4554\Protector_*.json dump). Plain tracers back.
+			
+			
+			
 			g_BulletTracers.push_back({ g_Local->m_vecEyePos, vecEnd, client_state->time });
 		}
 		else if (g_Weapon.IsKnife() && ((m_bIsInAttack && !prevattack) || (m_bIsInAttack2 && !prevattack2)))
@@ -214,7 +214,7 @@ void CHitRegister::Update(usercmd_s* cmd)
 
 			const float flDistance = m_bIsInAttack ? 80.f : 64.f;
 			Vector vecKnifeEnd = g_Local->m_vecEyePos + vecDir * flDistance;
-			// NOTE: same revert as above - no EV_PlayerTrace from Update() path.
+			
 			g_BulletTracers.push_back({ g_Local->m_vecEyePos, vecKnifeEnd, client_state->time });
 		}
 
@@ -393,8 +393,8 @@ void CHitRegister::Update(usercmd_s* cmd)
 		m_iMissedShots = 0;
 	}
 
-	//g_Engine.Con_NPrintf(10, "pBaseInfo->m_iHits: %i", pBaseInfo->m_iHits);
-	//g_Engine.Con_NPrintf(11, "pBaseInfo->m_iMisses: %i", pBaseInfo->m_iMisses);
+	
+	
 }
 
 void CHitRegister::Clear()

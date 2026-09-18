@@ -180,7 +180,7 @@ void CVisuals::Overlay()
 	m_pDrawPlayers->Overlay();
 	m_pDrawLocal->Overlay();
 
-	// перенеси меня рома
+	
 	if (!g_Local->m_bIsDead && cvars::visuals.esp_other_local_aa_side_arrows && cvars::ragebot.active && cvars::ragebot.aa_enabled && cvars::ragebot.aa_stand_desync && !g_pGlobals->m_flGaitMovement)
 	{
 		if (cvars::ragebot.aa_side)

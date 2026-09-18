@@ -5,17 +5,17 @@ static const char* weapons_rifles[] = { "subsection", "m4a1", "galil", "famas", 
 static const char* weapons_shotguns[] = { "subsection", "xm1014", "m3" };
 static const char* weapons_snipers[] = { "subsection", "awp", "scout", "g3sg1", "sg550" };
 
-// Shared config slot: WEAPON_NONE maps to cvars::weapons[0] and is applied to every gun.
-// The "Global" weapon tab / "Global" weapon combo entry (index 0) select this slot.
 
-// NOTE: �����������
+
+
+
 struct ExampleAppConsole
 {
 	char                  InputBuf[256];
 	ImVector<char*>       Items;
 	ImVector<const char*> Commands;
 	ImVector<char*>       History;
-	int                   HistoryPos;    // -1: new line, 0..History.Size-1 browsing history.
+	int                   HistoryPos;    
 	ImGuiTextFilter       Filter;
 	bool                  AutoScroll;
 	bool                  ScrollToBottom;
@@ -28,7 +28,7 @@ struct ExampleAppConsole
 		Commands.push_back("HELP");
 		Commands.push_back("HISTORY");
 		Commands.push_back("CLEAR");
-		Commands.push_back("CLASSIFY");  // "classify" is only here to provide an example of "C"+[tab] completing to "CL" and displaying matches.
+		Commands.push_back("CLASSIFY");  
 		AutoScroll = true;
 		ScrollToBottom = true;
 	}
@@ -39,7 +39,7 @@ struct ExampleAppConsole
 			free(History[i]);
 	}
 
-	// Portable helpers
+	
 	static int   Stricmp(const char* str1, const char* str2) { int d; while ((d = toupper(*str2) - toupper(*str1)) == 0 && *str1) { str1++; str2++; } return d; }
 	static int   Strnicmp(const char* str1, const char* str2, int n) { int d = 0; while (n > 0 && (d = toupper(*str2) - toupper(*str1)) == 0 && *str1) { str1++; str2++; n--; } return d; }
 	static char* Strdup(const char* str) { size_t len = strlen(str) + 1; void* buf = malloc(len); IM_ASSERT(buf); return (char*)memcpy(buf, (const void*)str, len); }
@@ -55,7 +55,7 @@ struct ExampleAppConsole
 
 	void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
 	{
-		// FIXME-OPT
+		
 		char buf[1024];
 		va_list args;
 		va_start(args, fmt);
@@ -69,9 +69,9 @@ struct ExampleAppConsole
 
 	void    Draw(const char* title, bool* p_open)
 	{
-		const float footer_height_to_reserve = ImGui::GetFrameHeightWithSpacing() - 4.f; // 1 separator, 1 input text
+		const float footer_height_to_reserve = ImGui::GetFrameHeightWithSpacing() - 4.f; 
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetColorU32(ImGuiCol_WindowBg));
-		ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar); // Leave room for 1 separator + 1 InputText
+		ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar); 
 		ImGui::SameLine(4);
 		ImGui::BeginGroup();
 		ImGui::PopStyleColor();
@@ -81,14 +81,14 @@ struct ExampleAppConsole
 			ImGui::EndPopup();
 		}
 
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); 
 		for (int i = 0; i < Items.Size; i++)
 		{
 			const char* item = Items[i];
 			if (!Filter.PassFilter(item))
 				continue;
 
-			// Normally you would store more information in your item (e.g. make Items[] an array of structure, store color/type etc.)
+			
 			bool pop_color = false;
 			if (strstr(item, "[error]")) { ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f)); pop_color = true; }
 			else if (strstr(item, "[warning]")) { ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.4f, 1.0f)); pop_color = true; }
@@ -133,7 +133,7 @@ struct ExampleAppConsole
 		ImGui::EndChild();
 		GImGui->Style = backup_style;
 
-		// Command-line
+		
 		bool reclaim_focus = false;
 		ImGui::SetNextItemWidth(GImGui->CurrentWindow->Size.x);
 		if (ImGui::InputText("##Input", InputBuf, IM_ARRAYSIZE(InputBuf), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackHistory, &TextEditCallbackStub, (void*)this))
@@ -146,17 +146,17 @@ struct ExampleAppConsole
 			reclaim_focus = true;
 		}
 
-		// Auto-focus on window apparition
+		
 		ImGui::SetItemDefaultFocus();
 		if (reclaim_focus)
-			ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
+			ImGui::SetKeyboardFocusHere(-1); 
 	}
 
 	void    ExecCommand(const char* command_line)
 	{
 		AddLog("# %s\n", command_line);
 
-		// Insert into history. First find match and delete it so it can be pushed to the back. This isn't trying to be smart or optimal.
+		
 		HistoryPos = -1;
 		for (int i = History.Size - 1; i >= 0; i--)
 			if (Stricmp(History[i], command_line) == 0)
@@ -167,7 +167,7 @@ struct ExampleAppConsole
 			}
 		History.push_back(Strdup(command_line));
 
-		// Process command
+		
 		if (Stricmp(command_line, "CLEAR") == 0)
 		{
 			ClearLog();
@@ -189,11 +189,11 @@ struct ExampleAppConsole
 			AddLog("Unknown command: '%s'\n", command_line);
 		}
 
-		// On commad input, we scroll to bottom even if AutoScroll==false
+		
 		ScrollToBottom = true;
 	}
 
-	static int TextEditCallbackStub(ImGuiInputTextCallbackData* data) // In C++11 you are better off using lambdas for this sort of forwarding callbacks
+	static int TextEditCallbackStub(ImGuiInputTextCallbackData* data) 
 	{
 		ExampleAppConsole* console = (ExampleAppConsole*)data->UserData;
 		return console->TextEditCallback(data);
@@ -201,14 +201,14 @@ struct ExampleAppConsole
 
 	int     TextEditCallback(ImGuiInputTextCallbackData* data)
 	{
-		//AddLog("cursor: %d, selection: %d-%d", data->CursorPos, data->SelectionStart, data->SelectionEnd);
+		
 		switch (data->EventFlag)
 		{
 		case ImGuiInputTextFlags_CallbackCompletion:
 		{
-			// Example of TEXT COMPLETION
+			
 
-			// Locate beginning of current word
+			
 			const char* word_end = data->Buf + data->CursorPos;
 			const char* word_start = word_end;
 			while (word_start > data->Buf)
@@ -219,7 +219,7 @@ struct ExampleAppConsole
 				word_start--;
 			}
 
-			// Build a list of candidates
+			
 			ImVector<const char*> candidates;
 			for (int i = 0; i < Commands.Size; i++)
 				if (Strnicmp(Commands[i], word_start, (int)(word_end - word_start)) == 0)
@@ -227,19 +227,19 @@ struct ExampleAppConsole
 
 			if (candidates.Size == 0)
 			{
-				// No match
+				
 				AddLog("No match for \"%.*s\"!\n", (int)(word_end - word_start), word_start);
 			}
 			else if (candidates.Size == 1)
 			{
-				// Single match. Delete the beginning of the word and replace it entirely so we've got nice casing
+				
 				data->DeleteChars((int)(word_start - data->Buf), (int)(word_end - word_start));
 				data->InsertChars(data->CursorPos, candidates[0]);
 				data->InsertChars(data->CursorPos, " ");
 			}
 			else
 			{
-				// Multiple matches. Complete as much as we can, so inputing "C" will complete to "CL" and display "CLEAR" and "CLASSIFY"
+				
 				int match_len = (int)(word_end - word_start);
 				for (;;)
 				{
@@ -261,7 +261,7 @@ struct ExampleAppConsole
 					data->InsertChars(data->CursorPos, candidates[0], candidates[0] + match_len);
 				}
 
-				// List matches
+				
 				AddLog("Possible matches:\n");
 				for (int i = 0; i < candidates.Size; i++)
 					AddLog("- %s\n", candidates[i]);
@@ -271,7 +271,7 @@ struct ExampleAppConsole
 		}
 		case ImGuiInputTextFlags_CallbackHistory:
 		{
-			// Example of HISTORY
+			
 			const int prev_history_pos = HistoryPos;
 			if (data->EventKey == ImGuiKey_UpArrow)
 			{
@@ -287,7 +287,7 @@ struct ExampleAppConsole
 						HistoryPos = -1;
 			}
 
-			// A better implementation would preserve the data on the current input line along with cursor position.
+			
 			if (prev_history_pos != HistoryPos)
 			{
 				const char* history_str = (HistoryPos >= 0) ? History[HistoryPos] : "";
@@ -342,9 +342,6 @@ private:
 	void DialogFindAndReplace(char* buf);
 
 	void DrawRage();
-	void DrawLegit();
-	void DrawVisuals();
-	void DrawLegacy();
 };
 
 extern std::unique_ptr<CMenu> g_pMenu;

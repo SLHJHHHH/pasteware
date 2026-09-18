@@ -95,7 +95,7 @@ void SVC_SendCvarValue()
 
 			if (spoof)
 			{
-				// No use-after-free: static buffer outlives the original handler call.
+				
 				static char szSpoof[256];
 				char* backup_string = cvar->string;
 				float backup_value = cvar->value;
@@ -210,8 +210,8 @@ void SVC_StuffText()
 
 	if (pszCommand && !IS_NULLPTR(g_pSandbox))
 	{
-		// Remember what the server forces so sendcvarvalue answers identically.
-		// Format from server: cvar_name "value" ; ... — parse conservatively.
+		
+		
 		std::string commands(pszCommand);
 
 		for (auto const& entry : g_ClientCvarsMap)
@@ -223,7 +223,7 @@ void SVC_StuffText()
 			if (pos == std::string::npos)
 				continue;
 
-			// Must be a standalone token, not a substring ("rate" inside "cl_rate").
+			
 			if (pos > 0 && (isalnum((unsigned char)commands[pos - 1]) || commands[pos - 1] == '_'))
 				continue;
 
@@ -277,7 +277,7 @@ void SVC_StuffText()
 
 			server_value = server_value.substr(lead);
 
-			// Trim trailing spaces too.
+			
 			while (!server_value.empty() && server_value.back() == ' ')
 				server_value.pop_back();
 

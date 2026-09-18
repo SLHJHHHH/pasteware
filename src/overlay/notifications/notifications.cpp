@@ -76,7 +76,7 @@ double CNotifications::GetAppearanceReachTime(double time)
 
 double CNotifications::GetNormalReachTime(double time)
 {
-	return GetAppearanceReachTime(time) + 5.0/* + cvars::settings.notifications_time*/;
+	return GetAppearanceReachTime(time) + 5.0;
 }
 
 double CNotifications::GetDisappearanceReachTime(double time)
@@ -175,7 +175,7 @@ static void GetAlpha(const NotificationData& data, float default_alpha, float* o
 		*out_alpha = default_alpha;
 		break;
 	case Disappearance:
-		*out_alpha = static_cast<float>(Math::Interp_F2(data.time + DURATION + 5.0/*cvar.settings.notifications_time*/, client_state->time, DURATION, default_alpha, 0.00));
+		*out_alpha = static_cast<float>(Math::Interp_F2(data.time + DURATION + 5.0, client_state->time, DURATION, default_alpha, 0.00));
 	}
 }
 
@@ -216,7 +216,7 @@ void CNotifications::Render(NotificationData& data)
 		{
 			if (GImGui->IO.MouseDown[0] && !bMouseDownMissed && !bMouseDownCatch)
 			{
-				data.time += 5.0/*cvars::settings.notifications_time*/ - (client_state->time - data.time);
+				data.time += 5.0 - (client_state->time - data.time);
 				bMouseDownCatch = true;
 			}
 		}

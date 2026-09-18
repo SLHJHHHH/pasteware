@@ -10,12 +10,12 @@ public:
 	bool			m_bFakeLatencyActive;
 	bool			m_bPositionAdjustmentActive;
 
-	// Doubletap / timebase basic: simple recharge + shift state
+	
 	int				m_iDoubleTapCharge;
 	bool			m_bDoubleTapShifting;
 	double			m_flLastDoubleTapTime;
 
-	// Airstuck / key states
+	
 	bool			m_bAirStuckActive;
 	bool			m_bFakeLatencyHoldKey;
 	bool			m_bAutoBlockKey;
@@ -37,7 +37,7 @@ public:
 	void			FakeLatency();
 	void			RecordHUDCommands(usercmd_s* cmd);
 
-	// Misc extras
+	
 	void			AutoBlock(usercmd_s* cmd);
 	void			AutoBoost(usercmd_s* cmd);
 	void			PredictPlayers();

@@ -8,14 +8,14 @@ physent_t* Physent::GetPhysent(const int& index)
 			return &pmove->physents[i];
 	}
 
-	/*// Create new physent
-	if (pmove->numphysent + 1 < MAX_PHYSENTS)
-	{
-		physent_t* physent = &pmove->physents[pmove->numphysent];
-		pmove->numphysent++;
-		physent->info = index;
-		return physent;
-	}*/
+	
+
+
+
+
+
+
+
 
 	return nullptr;
 }

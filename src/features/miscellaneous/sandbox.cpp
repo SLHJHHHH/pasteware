@@ -4,12 +4,12 @@ std::unique_ptr<CSandbox> g_pSandbox;
 
 CSandbox::CSandbox()
 {
-	// run code one time when you connected to server
+	
 }
 
 CSandbox::~CSandbox()
 {
-	// run code one time when you disconnected from server
+	
 }
 
 std::string CSandbox::GetCvar(std::string name)
@@ -27,14 +27,14 @@ void CSandbox::SetupCvar(std::string name, std::string value)
 
 namespace
 {
-	// Last value the server forced via stufftext (e.g. "ex_interp" "0.1").
-	// Kept so sendcvarvalue answers exactly what server set, no drift.
+	
+	
 	std::map<std::string, std::string> g_ServerForced;
 
 	struct CleanCvarEntry { const char* name; const char* value; };
 
-	// Non-Steam servers kick for tuned net cvars. Answer with stock values,
-	// keep real ones locally. Only these are spoofed, everything else honest.
+	
+	
 	const CleanCvarEntry kCleanCvars[] =
 	{
 		{ "ex_interp", "0.1" },

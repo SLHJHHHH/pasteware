@@ -47,18 +47,18 @@ bool Math::IntersectRayWithBox(const Vector& rayStart, const Vector& rayDelta, c
 			d2 = -rayEnd[i] + boxMins[i];
 		}
 
-		// if completely in front of face, no intersection
+		
 		if (d1 > 0 && d2 > 0)
 			return false;
 
-		// completely inside, check next face
+		
 		if (d1 <= 0 && d2 <= 0)
 			continue;
 
 		if (d1 > 0)
 			startsolid = false;
 
-		// crosses face
+		
 		if (d1 > d2)
 		{
 			f = d1;
@@ -72,7 +72,7 @@ bool Math::IntersectRayWithBox(const Vector& rayStart, const Vector& rayDelta, c
 			}
 		}
 		else
-		{ // leave
+		{ 
 			f = d1 / (d1 - d2);
 			if (f < leavefrac)
 			{

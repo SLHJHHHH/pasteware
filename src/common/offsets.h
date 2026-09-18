@@ -26,12 +26,12 @@ class COffsets
 private:
 	enum ModulesList
 	{
-		HW,					 // "hw.dll"
-		CLIENT,				 // "client.dll"
-		GAMEUI,				 // "gameui.dll"
-		VGUI2,				 // "vgui2.dll"
-		GAMEOVERLAYRENDERER, // "gameoverlayrenderer.dll"
-		STEAMCLIENT,		 // "steamclient.dll"
+		HW,					 
+		CLIENT,				 
+		GAMEUI,				 
+		VGUI2,				 
+		GAMEOVERLAYRENDERER, 
+		STEAMCLIENT,		 
 		MODULES_MAX_COUNT
 	};
 

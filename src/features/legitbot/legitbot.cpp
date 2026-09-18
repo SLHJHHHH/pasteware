@@ -109,14 +109,14 @@ namespace
 
 CLegitBot::CLegitBot()
 {
-	// run code one time when you connected to server
+	
 	m_flMinAngleDemoChecker = 1.f;
 	m_iStickyPlayer = -1;
 }
 
 CLegitBot::~CLegitBot()
 {
-	// run code one time when you disconnected from server
+	
 }
 
 void CLegitBot::Run(usercmd_s* cmd)
@@ -230,8 +230,8 @@ void CLegitBot::DesyncHelper(usercmd_s* cmd)
 	if (cmd->buttons & IN_ATTACK && g_Weapon.CanAttack())
 		return;
 
-	// Phase-locked to send packets: one sidemove direction per sent packet,
-	// so real/fake split stays stable instead of random every tick.
+	
+	
 	static bool bJitter = false;
 
 	if (!g_pMiscellaneous->m_iChokedCommands)
@@ -244,8 +244,8 @@ void CLegitBot::DesyncHelper(usercmd_s* cmd)
 
 	QDeltaAngles = QTempAngles.Delta360(QTempAngles2);
 
-	// NOTE: QAngle::Delta360 returns abs() per axis, so sign is unavailable here.
-	// Keep the old 45 deg gate untouched to avoid behavior change.
+	
+	
 	if (QDeltaAngles.y < 45.f)
 		cmd->sidemove = bJitter ? pmove->maxspeed : -pmove->maxspeed;
 }
@@ -455,7 +455,7 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 		vecSpreadDir.Normalize();
 	}
 
-	// sticky target with fallback: first try locked player, if not visible scan everyone
+	
 	float flInitialFOV = flBestFOV;
 	int iLockedSticky = m_iStickyPlayer;
 
@@ -492,11 +492,11 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 
 		vecTempAdjustedOrigin += Game::PredictPlayer(i);
 
-		// smoke check: block aim if a smoke cloud intersects the aim ray
+		
 		if (cvars::legitbot.aim_smoke_check && IsSmokeBlocked(vecSrc, vecTempAdjustedOrigin))
 			continue;
 
-		// pass 1: nearest by FOV, no traces (cheap)
+		
 		int best_hitbox = -1;
 		float best_hitbox_fov = flBestFOV;
 		Vector best_hitbox_pos;
@@ -527,7 +527,7 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 				best_hitbox_pos = vecHitbox;
 			}
 		}
-		// pass 2: trace only the single winner (expensive part once per player)
+		
 		if (best_hitbox != -1)
 		{
 			bool bFound = false;
@@ -571,8 +571,8 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 		}
 	}
 
-	/*g_Engine.Con_NPrintf(2, "m_iAimPlayer: %i", m_iAimPlayer);
-	g_Engine.Con_NPrintf(3, "m_iAimHitbox: %i", m_iAimHitbox);*/
+	
+
 
 	static auto previous_time = client_state->time;
 
@@ -602,7 +602,7 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 
 		Vector vecAimForward, vecAimOrigin(g_Player[m_iAimPlayer]->m_vecHitbox[m_iAimHitbox]);
 
-		vecAimOrigin = vecAdjustedOrigin + vecAimOrigin - g_Player[m_iAimPlayer]->m_vecOrigin; // Correct position
+		vecAimOrigin = vecAdjustedOrigin + vecAimOrigin - g_Player[m_iAimPlayer]->m_vecOrigin; 
 
 		vecAimForward = vecAimOrigin - vecSrc;
 
@@ -895,14 +895,14 @@ bool CLegitBot::DemoChecker(const QAngle& a_QPreviousAngles, const QAngle& a_QNe
 
 		if (QDeltaAngles.x > 0.000001)
 		{
-			if (0.007 > QDeltaAngles.x) // v1
+			if (0.007 > QDeltaAngles.x) 
 			{
 				a_QCorrectedAngles.x = QPreviousAngles.x;
 
 				bReturn = true;
 			}
 
-			{ // v2
+			{ 
 				float flAngle = DEFAULT_FOV * QDeltaAngles.x / g_Local->m_iFOV;
 
 				if (1.f != m_flMinAngleDemoChecker && m_flMinAngleDemoChecker - flAngle > 0.000001)
@@ -914,7 +914,7 @@ bool CLegitBot::DemoChecker(const QAngle& a_QPreviousAngles, const QAngle& a_QNe
 			}
 		}
 
-		if (QDeltaAngles.y > 0.0 && QDeltaAngles.y < 0.000013) // v1 && v2
+		if (QDeltaAngles.y > 0.0 && QDeltaAngles.y < 0.000013) 
 		{
 			a_QCorrectedAngles.y = QPreviousAngles.y;
 
@@ -1043,20 +1043,20 @@ void CLegitBot::Trigger(usercmd_s* cmd)
 
 		vecSpreadDir = vecForward + (vecRight * vecRandom[0]) + (vecUp * vecRandom[1]);
 
-		/*auto kek2 = vecSrc + vecSpreadDir;
-
-		if (g_Weapon->m_iWeaponID == WEAPON_ELITE)
-		{
-			if (g_Weapon->m_iWeaponState & WPNSTATE_ELITE_LEFT)
-				vecSrc -= vecRight * 5.f;
-			else
-				vecSrc += vecRight * 5.f;
-		}
-
-		auto perfect = vecSrc + vecSpreadDir;
 		
 
-		g_Engine.Con_Printf("perfect: %f %f %f | %f %f %f\n", perfect.x,perfect.y,perfect.z, kek2.x, kek2.y, kek2.z);*/
+
+
+
+
+
+
+
+
+
+
+
+
 
 		vecSpreadDir.Normalize();
 	}
@@ -1266,8 +1266,8 @@ void CLegitBot::SmoothAimAngles(const QAngle& QAngles, const QAngle& QAimAngles,
 
 	QNewAngles /= flSmoothing;
 
-	//QNewAngles.x *= g_ClientCvarsMap["m_pitch"]->value * g_ClientCvarsMap["sensitivity"]->value;
-	//QNewAngles.y *= g_ClientCvarsMap["m_yaw"]->value * g_ClientCvarsMap["sensitivity"]->value;
+	
+	
 
 	QNewAngles = QAngles + QNewAngles;
 

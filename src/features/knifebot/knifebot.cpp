@@ -4,12 +4,12 @@ std::unique_ptr<CKnifeBot> g_pKnifeBot;
 
 CKnifeBot::CKnifeBot()
 {
-	// run code one time when you connected to server
+	
 }
 
 CKnifeBot::~CKnifeBot()
 {
-	// run code one time when you disconnected from server
+	
 }
 
 void CKnifeBot::Run(usercmd_s* cmd)
@@ -20,15 +20,15 @@ void CKnifeBot::Run(usercmd_s* cmd)
 	if (!g_Weapon.IsKnife())
 		return;
 
-	/*
-	 * NOTE: this feature is intentionally NOT gated with CBaseWeapon::CanAttack().
-	 * That helper is written for firearms - it additionally demands a non-empty
-	 * clip (the knife carries none) and strictly negative next-attack timers, so
-	 * using it here silently killed the whole bot. Readiness is not required at
-	 * all: the attack button is simply held while a target is in range, and the
-	 * game itself refuses to start a swing/stab while the weapon is recovering,
-	 * so an early IN_ATTACK/IN_ATTACK2 command is harmless.
-	 */
+	
+
+
+
+
+
+
+
+
 
 	const float flDistance = (cvars::misc.kb_attack_type == 0) ? cvars::misc.kb_swing_distance : cvars::misc.kb_stab_distance;
 
@@ -234,7 +234,7 @@ void CKnifeBot::Run(usercmd_s* cmd)
 				}
 			}
 
-			//g_Engine.Con_NPrintf(7, "flBestFraction: %f", flBestFraction);
+			
 
 			if (flBestFraction < 1.f)
 			{
@@ -291,8 +291,8 @@ void CKnifeBot::DebugPrint(const char* pszStage, const float& flFOV, const float
 
 	static double dbLastPrint = 0.0;
 
-	// attack events are rare (they are limited by the knife recovery time), so
-	// they are always reported, everything else is rate limited to avoid spam
+	
+	
 	const bool bEvent = (!strcmp(pszStage, "attack") || !strcmp(pszStage, "shield_block"));
 
 	if (!bEvent)

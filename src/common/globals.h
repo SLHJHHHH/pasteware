@@ -27,26 +27,26 @@ public:
 	int				m_nNewCommands;
 	uintptr_t		m_dwInitPoint;
 
-	// Watches
+	
 	float			m_flFrameTime;
 	float			m_flGameTime;
 	float			m_flRoundTime;
 
-	// Render models
+	
 	bool			m_bRenderModels;
 	int				m_iRenderType;
 	float			m_flRenderColor[4];
 
-	// Local Player Gait Yaw
+	
 	float			m_flYaw;
 	float			m_flGaitYaw;
 	float			m_flGaitMovement;
 	float			m_flYawModifier;
 	float			m_flYawDiff;
-	float			m_flBlendYaw; // Use integer
+	float			m_flBlendYaw; 
 	Vector			m_vecPreviousGaitOrigin;
 
-	// R_DrawEntitiesOnList
+	
 	int*			m_pNumVisibleEntities;
 	cl_entity_t**	m_pVisibleEntities;
 	uintptr_t		m_dwCurrentEntity;

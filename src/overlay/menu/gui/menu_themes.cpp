@@ -22,7 +22,7 @@ void CMenuThemes::SetDefaultDarkTheme()
 	GImGui->Style.Colors[ImGuiCol_HeaderHovered] = ImColor(61, 59, 63, 150);
 	GImGui->Style.Colors[ImGuiCol_HeaderActive] = ImColor(61, 59, 63, 150);
 	GImGui->Style.Colors[ImGuiCol_Border] = ImColor(41, 38, 43, 255);
-	GImGui->Style.Colors[ImGuiCol_BorderShadow] = ImColor(18, 18, 35, 255);//ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+	GImGui->Style.Colors[ImGuiCol_BorderShadow] = ImColor(18, 18, 35, 255);
 	GImGui->Style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.37f, 0.37f, 0.37f, 0.00f);
 	GImGui->Style.Colors[ImGuiCol_ScrollbarGrab] = ImColor(80, 80, 80, 204);
 	GImGui->Style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImColor(100, 100, 100, 204);

@@ -413,7 +413,7 @@ struct cvars_misc
 	bool	replace_models_with_original;
 	bool	steamid_spoofer;
 
-	// Misc extras (safe, no crash exploits)
+	
 	bind_t	auto_block_key;
 	bool	auto_block;
 	bind_t	auto_boost_key;
@@ -426,19 +426,19 @@ struct cvars_misc
 	bool	maximize_on_respawn;
 	bool	client_weapons;
 
-	// Sandbox cvars UI
+	
 	bool	sandbox_enabled;
 
-	// Speedhack (safe client-side host timescale emulation)
+	
 	bind_t	speed_key;
 	bool	speed_enabled;
 	float	speed_value;
 
-	// Airstuck (safe: choke packets while key held)
+	
 	bind_t	airstuck_key;
 	bool	airstuck;
 
-	// Doubletap / timebase basic (safe: choke + resend, no untrusted exploits)
+	
 	bind_t	doubletap_key;
 	bool	doubletap;
 	int		doubletap_shift;

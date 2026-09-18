@@ -125,7 +125,7 @@ void HandleGLSceneUpdate()
 {
 	AntiScreen();
 
-	// Render context: safe place for raytraces (kreedz wallbug cache etc.).
+	
 	if (Game::IsConnected())
 		g_Kreedz.Frame();
 
