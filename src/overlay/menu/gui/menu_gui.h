@@ -49,6 +49,8 @@ public:
 	void TabSeparator();
 	void TabShadow(const ImVec2& pos, const ImVec2& size, const ImVec4& color);
 
+	const char* SearchText();
+
 	void SetID(const char* str_id);
 	void SetChildSize(ImVec2& size);
 
@@ -73,6 +75,8 @@ public:
 
 private:
 	std::map<std::string, float> m_widgets_list;
+
+	char m_search[64];
 
 	std::string m_id;
 	std::string m_message;

@@ -308,6 +308,7 @@ public:
 	CMenu();
 
 	bool IsOpened();
+	const char* SearchText();
 
 	void Open();
 	void Close();
