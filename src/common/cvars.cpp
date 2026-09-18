@@ -476,7 +476,7 @@ static void FileMiscHandle()
 	g_pSettings->Key("automatic.reload", cvars::misc.automatic_reload);
 	g_pSettings->Key("automatic.pistol", cvars::misc.automatic_pistol);
 	g_pSettings->Key("nospread.enabled", cvars::misc.nospread);
-	g_pSettings->Key("nospread.mode", cvars::misc.nospread_mode, 2); // combo index, 2 = Pitch / Yaw / Roll (see nospread.h ENoSpread)
+	g_pSettings->Key("nospread.mode", cvars::misc.nospread_mode, 2); 
 	g_pSettings->Key("fps.unlock", cvars::misc.fps_unlock, true);
 	g_pSettings->Key("fps.developer", cvars::misc.fps_developer);
 	g_pSettings->Key("fakelatency.enabled", cvars::misc.fakelatency);

@@ -4,12 +4,12 @@ std::unique_ptr<CRageBot> g_pRageBot;
 
 CRageBot::CRageBot()
 {
-	// run code one time when you connected to server
+	
 }
 
 CRageBot::~CRageBot()
 {
-	// run code one time when you disconnected from server
+	
 }
 
 void CRageBot::Run(usercmd_s* cmd)
@@ -78,7 +78,7 @@ void CRageBot::FakeLag(usercmd_s* cmd)
 		}
 		else if (cvars::ragebot.fakelag_type == 1)
 		{
-			static const float flDistance = sqrt(LAG_COMPENSATION_TELEPORTED_DISTANCE_SQR); // maybe 128 server side - SV_UnlagCheckTeleport
+			static const float flDistance = sqrt(LAG_COMPENSATION_TELEPORTED_DISTANCE_SQR); 
 
 			float flLength = g_Local->m_flVelocity * g_Local->m_flFrameTime;
 			
@@ -104,16 +104,16 @@ void CRageBot::AntiAimbot(usercmd_s* cmd)
 
 	if (cvars::ragebot.aa_enabled)
 	{
-		if (cmd->buttons & IN_USE) //Defusing
+		if (cmd->buttons & IN_USE) 
 			return;
 
 		if (g_Local->m_bIsOnLadder)
 			return;
 
-		if (pmove->waterjumptime) // Exit from water??
+		if (pmove->waterjumptime) 
 			return;
 
-		if (g_Weapon.IsNade() && cvars::ragebot.aa_conditions[1]) // Grenades throw only
+		if (g_Weapon.IsNade() && cvars::ragebot.aa_conditions[1]) 
 		{
 			if (~cmd->buttons & IN_ATTACK)
 			{
@@ -124,7 +124,7 @@ void CRageBot::AntiAimbot(usercmd_s* cmd)
 					return;
 			}
 		}
-		else if (g_Weapon.IsC4()) // Planting
+		else if (g_Weapon.IsC4()) 
 		{
 
 		}
@@ -289,7 +289,7 @@ void CRageBot::AntiAimbot(usercmd_s* cmd)
 						else if (flGaitYawDifference > 180)
 							flGaitYawDifference -= 360;
 
-						if (flGaitYawDifference < -abs(flDesyncAngle) || flGaitYawDifference > abs(flDesyncAngle)) // Desync rotate detect
+						if (flGaitYawDifference < -abs(flDesyncAngle) || flGaitYawDifference > abs(flDesyncAngle)) 
 							flDesyncAngle = -flDesyncAngle;
 					}
 
@@ -500,7 +500,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 
 			if (pGameEntity)
 			{
-				if (cvars::ragebot.raim_delayshot[0]) // Unlag
+				if (cvars::ragebot.raim_delayshot[0]) 
 				{
 					Vector vecDelta = pGameEntity->curstate.origin - pGameEntity->prevstate.origin;
 
@@ -508,7 +508,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 						continue;
 				}
 
-				if (cvars::ragebot.raim_delayshot[1]) //History
+				if (cvars::ragebot.raim_delayshot[1]) 
 				{
 					if (pGameEntity->curstate.animtime == pGameEntity->prevstate.animtime)
 						continue;
@@ -533,7 +533,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 
 			Vector vecHitbox(vecTempAdjustedOrigin + g_Player[i]->m_vecHitbox[hitbox] - g_Player[i]->m_vecOrigin);
 
-			{ // Center of hitbox
+			{ 
 				Vector vecAimOrigin = vecHitbox;
 
 				float flFOV = vecSpreadDir.AngleBetween(vecAimOrigin - vecSrc);
@@ -569,7 +569,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 					continue;
 			}
 
-			{ // Points
+			{ 
 				float flHitboxScale = GetScaleOfHitbox(hitbox);
 
 				if (flHitboxScale)
@@ -615,7 +615,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 		return;
 	}
 
-	//g_Engine.Con_NPrintf(1, "targets: %i", targets.size());
+	
 
 	std::deque<CRageBotTarget>::iterator best_target_damage = targets.begin(), best_target_fov = targets.begin();
 
@@ -722,13 +722,13 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 			cmd->buttons |= IN_DUCK;
 	}
 
-	/*g_Engine.Con_NPrintf(2, "m_iPlayer: %i", m_TargetData.index);
-	g_Engine.Con_NPrintf(3, "m_iWeight: %i", m_TargetData.weight);
-	g_Engine.Con_NPrintf(4, "m_iDamage: %i", m_TargetData.damage);
-	g_Engine.Con_NPrintf(5, "m_flFOV: %f", m_TargetData.fov);
-	g_Engine.Con_NPrintf(6, "m_iHitbox: %i", m_TargetData.hitbox);
-	g_Engine.Con_NPrintf(7, "m_iHitboxPoint: %i", m_TargetData.point);
-	g_Engine.Con_NPrintf(8, "penetrate: %i", cvars::weapons[g_Weapon->m_iWeaponID].raim_auto_penetration);*/
+	
+
+
+
+
+
+
 
 	assert(m_TargetData.index >= 1 && m_TargetData.index <= MAX_CLIENTS);
 	assert(m_TargetData.hitbox > -1 && m_TargetData.hitbox < HITBOX_MAX);

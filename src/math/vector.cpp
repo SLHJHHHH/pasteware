@@ -39,31 +39,31 @@ void Vector::VectorRotate(Vector& vecInput, const QAngle& QRotation)
 	z = vecInput.Dot(flMatRotate[2]);
 }
 
-/*QAngle Vector::ToEulerAngles()
-{
-	float flPitch, flYaw;
-	float flLength = Length2D();
 
-	if (flLength > 0.f) 
-	{
-		flPitch = RAD2DEG(atan2(-z, flLength));
 
-		if (flPitch < 0.f)
-			flPitch += 360.f;
 
-		flYaw = RAD2DEG(atan2(y, x));
 
-		if (flYaw < 0.f)
-			flYaw += 360.f;
-	}
-	else 
-	{
-		flPitch = (z > 0.f) ? 270.f : 90.f;
-		flYaw = 0.f;
-	}
 
-	return QAngle(flPitch, flYaw, 0.f);
-}*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 QAngle Vector::ToEulerAngles(Vector* vecPseudoUp)
 {

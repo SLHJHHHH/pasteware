@@ -1,5 +1,7 @@
 ﻿#include "framework.h"
 
+ExampleAppConsole g_Console;
+
 CMenu::CMenu()
 	: m_pGui(std::make_unique<CMenuGui>())
 	, m_pPopupModal(std::make_unique<CMenuPopupModal>())

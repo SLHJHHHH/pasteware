@@ -228,7 +228,7 @@ void CDrawLocal::ToggleStatus()
 }
 void CDrawLocal::Watermark()
 {
-	// Permanent authorship mark, so nobody can claim this build as his own work.
+	
 	constexpr const char* credits = "made by warfallen & @DONECKII";
 
 	char buf[256] = { 0 };

@@ -69,7 +69,7 @@ float UTIL_SharedRandomFloat(unsigned seed, float low, float high)
 	return low;
 }
 
-double CNoSpread::GetConstantRemainder(const Vector& vecSpread) // aka Trap God Constant
+double CNoSpread::GetConstantRemainder(const Vector& vecSpread) 
 {
 	QAngle QOutAngles, QInAngles(90.f, 0.f, 0.f);
 
@@ -124,7 +124,7 @@ void CNoSpread::GetSpreadOffset(const unsigned& random_seed, const int& future, 
 
 		if (a * (vecForward.x * vecForward.x + a - dot * dot) < 0.f && (type == NOSPREAD_PITCH_ROLL || type == NOSPREAD_PITCH_YAW_ROLL))
 		{
-			//apply trapgod constant or watch how your pasted iterative nospread fails
+			
 			QAdjusterAngles.x = RAD2DEG(atan(sqrt(vecSpread.x * vecSpread.x + vecSpread.y * vecSpread.y)));
 			QAdjusterAngles.z = -RAD2DEG(atan2(vecSpread.x, vecSpread.y));
 
@@ -148,178 +148,178 @@ void CNoSpread::GetSpreadOffset(const unsigned& random_seed, const int& future, 
 	QNewAngles.Normalize();
 
 	QOutAngles = QNewAngles;
-	/*else if (type == NOSPREAD_PITCH_YAW || type == NOSPREAD_PITCH_YAW_ROLL)
-	{
-		QAngle QAngles, QOldAngles, QAdjusterAngles, QInputAngles, QNewAngles, QTestAngles, QTempPitch, QInputRoll;
+	
 
-		Vector vecSpread, vecForward, vecRight, vecUp, vecDirection, vecInputRight, vecInputRight2, vecRotatedPitch;
 
-		double PitchBreakingPoint, UpVal, CosineInput, CosinePitch, InputRoll, Yaw_1, ReciprocalYaw_1, ReciprocalYaw_2, PitchInput, PitchCosine, PitchSine, TempPitch, ConstantRemainder;
 
-		GetSpreadXY(random_seed, future, vecSpread);
 
-		ConstantRemainder = GetConstantRemainder(vecSpread);
 
-		QAngles.AngleVectors(&vecForward, &vecRight, &vecUp);
 
-		vecDirection = vecForward + (vecRight * -vecSpread.x) + (vecUp * -vecSpread.y);
-		vecDirection.Normalize();
 
-		PitchBreakingPoint = RAD2DEG(atan2(vecDirection.y, sqrt(1.f - vecDirection.y * vecDirection.y)));
 
-		if (PitchBreakingPoint > 180.0)
-			PitchBreakingPoint -= 360.0;
-		else if (PitchBreakingPoint < -180.0)
-			PitchBreakingPoint += 360.0;
 
-		PitchBreakingPoint = PitchBreakingPoint < 0.0 ? 90.0 + PitchBreakingPoint : 90.0 - PitchBreakingPoint;
 
-		QAngles = QInAngles; QOldAngles = QAngles;
-		QAngles = vecDirection.ToEulerAngles();
-		QAngles.Normalize();
-		QAngles.AngleVectors(&vecForward, &vecRight, &vecUp);
-		QAngles = QOldAngles;
 
-		UpVal = vecUp.z;
-		CosineInput = QAngles.x * (IM_PI * 2.0 / 360.0);
-		CosinePitch = cos(CosineInput);
-		Yaw_1 = CosinePitch ? 1.0 / CosinePitch : 0.0;
-		Yaw_1 *= vecDirection.y;
-		vecInputRight.y = Yaw_1;
 
-		if (Yaw_1 >= 1.0 || Yaw_1 <= -1.0)
-		{
-			vecInputRight.y = 1.0 / Yaw_1;
-			vecInputRight.x = 0.f;
-		}
-		else
-			vecInputRight.x = sqrt(1.f - vecInputRight.y * vecInputRight.y);
 
-		vecInputRight.z = 0.f;
-		vecInputRight2.y = vecDirection.y;
 
-		QAdjusterAngles.y = RAD2DEG(atan2(vecInputRight.y, vecInputRight.x));
-		QAdjusterAngles.Normalize();
 
-		if (vecDirection.y >= 1.f || vecDirection.y <= -1.f)
-		{
-			vecInputRight2.y = 1.f / vecDirection.y;
-			vecInputRight2.x = 0.f;
-		}
-		else
-			vecInputRight2.x = sqrt(1.f - vecInputRight2.y * vecInputRight2.y);
 
-		ReciprocalYaw_1 = vecInputRight.x ? vecInputRight.y / vecInputRight.x : 0.0;
-		ReciprocalYaw_2 = vecInputRight2.x ? vecInputRight2.y / vecInputRight2.x : 0.0;
-		PitchInput = 0.0;
 
-		if (QAngles.x)
-		{
-			if (ReciprocalYaw_1 && ReciprocalYaw_2)
-			{
-				PitchInput = 1.0;
 
-				if (abs(ReciprocalYaw_1) < abs(ReciprocalYaw_2))
-					PitchInput = ReciprocalYaw_1 / ReciprocalYaw_2;
-				else if (abs(ReciprocalYaw_2) < abs(ReciprocalYaw_1))
-					PitchInput = ReciprocalYaw_2 / ReciprocalYaw_1;
-			}
-		}
-		else
-			PitchInput = 1.0;
 
-		if (PitchInput > 1.0 && PitchInput < -1.0)
-		{
-			// note: sometimes PitchInput is off by about 2.e-16 or so
-			// that is to say, PitchInput *= ( 1 + 2.e-16 ); that would fix some of the accuracy beyond 15 decimal places
-			// additional note: pretty much every nospread method is roughly accurate to 14 decimal places on average
 
-			PitchCosine = PitchInput;
-			PitchSine = sqrt(1.0 - PitchInput * PitchInput);
 
-			Vector vecUnRotatedPitch(PitchSine, PitchCosine, 0.f);
 
-			TempPitch = QAngles.x;
 
-			if (TempPitch < 0.0)
-				TempPitch = -TempPitch;
 
-			QTempPitch.y = (45.0 - TempPitch) * 2.0;
 
-			vecRotatedPitch.VectorRotate(vecUnRotatedPitch, QTempPitch);
 
-			if (QAngles.x < 0.f)
-				QInputAngles.x = RAD2DEG(atan2(vecRotatedPitch.y, vecRotatedPitch.x));
-			else
-				QInputAngles.x = RAD2DEG(atan2(-vecRotatedPitch.y, vecRotatedPitch.x));
-		}
 
-		QInputAngles.Normalize();
-		QInputAngles.AngleVectors(&vecForward, &vecRight, &vecUp);
 
-		vecDirection = vecForward + (vecRight * vecSpread.x) + (vecUp * vecSpread.y);
-		vecDirection.Normalize();
 
-		QAdjusterAngles.x = QAngles.x + RAD2DEG(atan2(vecDirection.z, vecDirection.x));
-		QAdjusterAngles.Normalize();
 
-		QNewAngles = QOldAngles;
-		QNewAngles.x += QAdjusterAngles.x;
-		QNewAngles.y += QAdjusterAngles.y;
-		QNewAngles.z = 0.f;
-		QNewAngles.Normalize();
 
-		// Recover extra precision past 1.e-15, not necessary, but an additional step if you wish, 5 iterations is the maximum you need
-		for (size_t i = 0; i < 5; i++)
-		{
-			QNewAngles.AngleVectors(&vecForward, &vecRight, &vecUp);
 
-			vecDirection = vecForward + (vecRight * vecSpread.x) + (vecUp * vecSpread.y);
-			vecDirection.Normalize();
 
-			QTestAngles = vecDirection.ToEulerAngles();
-			QTestAngles.Normalize();
 
-			QNewAngles.x += QAngles.x - QTestAngles.x;
-			QNewAngles.y += QAngles.y - QTestAngles.y;
-			QNewAngles.Normalize();
-		}
 
-		if (type == NOSPREAD_PITCH_YAW_ROLL)
-		{
-			// this only applies in games where you have access to the roll angle, eg the Source Engine, eg CS:S, DoD:S, TF2, CSGO, etc
-			if (QInAngles.x > PitchBreakingPoint || QInAngles.x < -PitchBreakingPoint)
-			{
-				QNewAngles.AngleVectors(&vecForward, &vecRight, &vecUp);
 
-				InputRoll = vecUp.y / UpVal;
 
-				QInputRoll.x = RAD2DEG(asin(InputRoll));
 
-				QInputRoll.x *= -1;
 
-				QNewAngles = QOldAngles;
 
-				QNewAngles.z = QInputRoll.x + ConstantRemainder;
 
-				QNewAngles.AngleVectors(&vecForward, &vecRight, &vecUp);
 
-				vecDirection = vecForward + (vecRight * -vecSpread.x) + (vecUp * -vecSpread.y);
 
-				vecDirection.Normalize();
 
-				QNewAngles = vecDirection.ToEulerAngles(&vecUp);
 
-				QNewAngles.Normalize();
 
-				QNewAngles.z += ConstantRemainder;
 
-				QNewAngles.Normalize();
-			}
-		}
 
-		QOutAngles = QNewAngles;
-	}*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 #pragma warning(default: 4244)

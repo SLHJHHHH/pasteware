@@ -817,7 +817,7 @@ public:
 		Up.Normalize();
 	}
 
-	//QAngle ToEulerAngles();
+	
 	QAngle ToEulerAngles(Vector* PseudoUp);
 	void AngleMatrix(const QAngle& Rotation, float(*matrix)[3]);
 	void VectorRotate(Vector& In, const QAngle& Rotation);

@@ -22,8 +22,8 @@ bool CSound::IsValidSound(char* pszSoundFile, float* pOrigin, int index, DWORD c
 	if (index <= 0 || index > MAX_EDICTS)
 		return false;
 
-	/*if (g_Entity[index]->m_bIsLocal)
-		return false;*/
+	
+
 
 	if (channel == CHAN_AUTO)
 		return false;

@@ -202,10 +202,7 @@
     <ClCompile Include="src\overlay\menu\gui\menu_popup_modal.cpp" />
     <ClCompile Include="src\overlay\menu\gui\menu_themes.cpp" />
     <ClCompile Include="src\overlay\menu\menu.cpp" />
-    <ClCompile Include="src\overlay\menu\menu_draw.cpp" />
 	<ClCompile Include="src\overlay\menu\menu_primordial.cpp" />
-    <ClCompile Include="src\overlay\menu\menu_draw_legit.cpp" />
-    <ClCompile Include="src\overlay\menu\menu_draw_visuals.cpp" />
     <ClCompile Include="src\overlay\notifications\notifications.cpp" />
     <ClCompile Include="src\renderer\drawlist.cpp" />
     <ClCompile Include="src\renderer\renderer.cpp" />

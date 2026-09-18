@@ -655,8 +655,8 @@ static void WaitForPressKey(int* keynum)
 	WAIT_FOR_KEY(VK_MBUTTON, K_MOUSE3);
 	WAIT_FOR_KEY(VK_XBUTTON1, K_MOUSE4);
 	WAIT_FOR_KEY(VK_XBUTTON2, K_MOUSE5);
-	//WAIT_FOR_KEY(VK_ESCAPE, -1);
-	//WAIT_FOR_KEY(VK_BACK, -1);
+	
+	
 }
 
 bool CMenuGui::Key(void* v, std::string label, bool owned)

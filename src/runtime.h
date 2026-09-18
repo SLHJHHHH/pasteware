@@ -42,7 +42,7 @@
 #pragma comment(lib, "wbemuuid.lib")
 #pragma comment(lib, "comsuppw.lib") 
 
-//#define LICENSING
+
 
 #if defined(LICENSING)
 #include "VMProtectSDK\VMProtectSDK.h"

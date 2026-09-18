@@ -160,20 +160,20 @@ bool COffsets::FindGameOffsets()
 	if (!(g_pInitiateGameConnection = (InitiateGameConnection_t)InitiateGameConnection()))
 		return false;
 
-	/*if (!(g_pIN_MouseMove = (IN_MouseMove_t)IN_MouseMove()))
-		return false;*/
+	
 
-	/*if(!(g_pNET_SendPacket = (NET_SendPacket_t)NET_SendPacket()))
-		return false;*/
 
-	/*if (!(g_pCL_RunUsercmd = (CL_RunUsercmd_t)CL_RunUsercmd()))
-		return false;*/
+	
 
-	/*if (!(g_pHost_FilterTime = (Host_FilterTime_t)Host_FilterTime()))
-		return false;
 
-	if (!(g_pSCR_UpdateScreen = (SCR_UpdateScreen_t)SCR_UpdateScreen()))
-		return false;*/
+	
+
+
+	
+
+
+
+
 
 	if (!(g_PlayerExtraInfo.GetAddress(PlayerExtraInfo())))
 		return false;
@@ -243,7 +243,7 @@ PVOID COffsets::NET_SendPacket()
 
 	ptr = FindUpPattern((PCHAR)V("\x90\x90\x90"), ptr, Module[HW].base);
 
-	while (*(PBYTE)ptr == 0x90) //Find start function
+	while (*(PBYTE)ptr == 0x90) 
 		ptr++;
 
 	return (PVOID)ptr;
@@ -261,7 +261,7 @@ PVOID COffsets::CL_RunUsercmd()
 
 	ptr = FindUpPattern((PCHAR)V("\x90\x90\x90"), ptr, Module[HW].base);
 
-	while (*(PBYTE)ptr == 0x90) //Find start function
+	while (*(PBYTE)ptr == 0x90) 
 		ptr++;
 
 	return (PVOID)ptr;
@@ -303,7 +303,7 @@ PVOID COffsets::R_DrawEntitiesOnList()
 
 	ptr = FindDownPattern((PCHAR)V("\x90\x90\x90"), ptr, Module[HW].end);
 
-	while (*(PBYTE)ptr == 0x90) //Find start next function
+	while (*(PBYTE)ptr == 0x90) 
 		ptr++;
 
 	if (AddressNotInSpace(ptr, Module[HW].base, Module[HW].end))
@@ -312,7 +312,7 @@ PVOID COffsets::R_DrawEntitiesOnList()
 		return NULL;
 	}
 	
-	auto ptr_cl_num_visedicts = FindDownPattern((PCHAR)V("\x8B\x0D"), ptr, Module[HW].end); //cl_numvisedicts
+	auto ptr_cl_num_visedicts = FindDownPattern((PCHAR)V("\x8B\x0D"), ptr, Module[HW].end); 
 
 	if (AddressNotInSpace(ptr_cl_num_visedicts, Module[HW].base, Module[HW].end))
 	{
@@ -322,7 +322,7 @@ PVOID COffsets::R_DrawEntitiesOnList()
 
 	g_pGlobals->m_pNumVisibleEntities = (int*) * (PDWORD)(ptr_cl_num_visedicts + 2);
 	
-	auto ptr_cl_visedicts = FindDownPattern((PCHAR)V("\x8B\x14"), ptr, Module[HW].end); //cl_visedicts
+	auto ptr_cl_visedicts = FindDownPattern((PCHAR)V("\x8B\x14"), ptr, Module[HW].end); 
 
 	if (AddressNotInSpace(ptr_cl_num_visedicts, Module[HW].base, Module[HW].end))
 	{
@@ -381,7 +381,7 @@ int COffsets::GetGameBuild()
 
 PVOID COffsets::StudioModelRenderer()
 {
-	auto ptr = *(PDWORD)(FindDownPattern((PCHAR)V("\x56\x8B\xF1\xE8\xFF\xFF\xFF\xFF\xC7\x06"), (PCHAR)V("xxxx????xx"), Module[CLIENT].base, Module[CLIENT].end, 0x0A)); // .text:019477A8                 mov     dword ptr [esi], offset ??_7CGameStudioModelRenderer@@6B@ ; const CGameStudioModelRenderer::`vftable'
+	auto ptr = *(PDWORD)(FindDownPattern((PCHAR)V("\x56\x8B\xF1\xE8\xFF\xFF\xFF\xFF\xC7\x06"), (PCHAR)V("xxxx????xx"), Module[CLIENT].base, Module[CLIENT].end, 0x0A)); 
 
 	if (AddressNotInSpace(ptr, Module[CLIENT].base, Module[CLIENT].end))
 	{
@@ -396,7 +396,7 @@ PVOID COffsets::PlayerExtraInfo()
 {
 	auto start = (uintptr_t)(g_pClient->HUD_GetPlayerTeam);
 
-	if (!start) // On 4554 == 0x0
+	if (!start) 
 		start = (uintptr_t)(g_pClient->HUD_ChatInputPosition);
 
 	auto ptr = FindDownPattern((PCHAR)V("\x0F\xBF\x04\xFF\xFF\xFF\xFF\xFF\xC3"), (PCHAR)V("xxx?????x"), start, (uintptr_t)(g_pClient->ClientFactory));
@@ -434,7 +434,7 @@ PVOID COffsets::Host_FilterTime()
 	if (AddressNotInSpace(ptr, Module[HW].base, Module[HW].end))
 	{
 		ptr = FindDownPattern((PCHAR)V("\x55\x8B\xEC\x83\xE4\xF8\x83\xEC\x08\xD9\x05\xFF\xFF\xFF\xFF\xD8\x1D\xFF\xFF\xFF\xFF\xDF\xE0\xF6\xC4\x41\x75\x3F\xE8\xFF\xFF\xFF\xFF\x85\xC0\x75\x09\xA1"), 
-							  (PCHAR)V("xxxxxxxxxxx????xx????xxxxxxxx????xxxxx"), Module[HW].base, Module[HW].end); //4554 NOT TESTED
+							  (PCHAR)V("xxxxxxxxxxx????xx????xxxxxxxx????xxxxx"), Module[HW].base, Module[HW].end); 
 
 		if (AddressNotInSpace(ptr, Module[HW].base, Module[HW].end))
 		{
@@ -499,9 +499,9 @@ PVOID COffsets::PreS_DynamicSound()
 
 PVOID COffsets::EngineMsgs()
 {
-	auto ptr = FindPush((PCHAR)"-------- Message Load ---------\n", Module[HW].base, Module[HW].end); // .text:01D1CFB7                 push    offset aMessageLoad ; "-------- Message Load ---------\n"
+	auto ptr = FindPush((PCHAR)"-------- Message Load ---------\n", Module[HW].base, Module[HW].end); 
 	
-	ptr = FindDownPattern((PCHAR)V("\xBF"), ptr, Module[HW].end, 0x1); // hw.dll+1CFC8 - BF A4B39703           - mov edi,hw.dll+13B3A4 { [0397AFC0] }
+	ptr = FindDownPattern((PCHAR)V("\xBF"), ptr, Module[HW].end, 0x1); 
 
 	auto ptr_enginemsgbase = (svc_func_t*)(*(PDWORD)ptr - sizeof(DWORD));
 
@@ -515,13 +515,13 @@ PVOID COffsets::EngineMsgs()
 
 		auto CallMSG_ReadCoord = Absolute((uintptr_t)(ptr_enginemsgbase[svc_particle].pfnParse) + 1);
 
-		if (*(PBYTE)(CallMSG_ReadCoord + 0x13) == 0xE8)	// STEAM
+		if (*(PBYTE)(CallMSG_ReadCoord + 0x13) == 0xE8)	
 			MSG_ReadCoord = (HL_MSG_ReadCoord)Absolute((CallMSG_ReadCoord + 0x14));
-		else if (*(PBYTE)(CallMSG_ReadCoord + 0x15) == 0xE8)	// OLD PATCH (SOFTWARE)
+		else if (*(PBYTE)(CallMSG_ReadCoord + 0x15) == 0xE8)	
 			MSG_ReadCoord = (HL_MSG_ReadCoord)Absolute((CallMSG_ReadCoord + 0x16));
-		else if (*(PBYTE)(CallMSG_ReadCoord + 0x0E) == 0xE8)	// OLD PATCH
+		else if (*(PBYTE)(CallMSG_ReadCoord + 0x0E) == 0xE8)	
 			MSG_ReadCoord = (HL_MSG_ReadCoord)Absolute((CallMSG_ReadCoord + 0x0F));
-		else if (*(PBYTE)(CallMSG_ReadCoord + 0x0B) == 0xE8)	// OLD OLD PATCH
+		else if (*(PBYTE)(CallMSG_ReadCoord + 0x0B) == 0xE8)	
 			MSG_ReadCoord = (HL_MSG_ReadCoord)Absolute((CallMSG_ReadCoord + 0x0C));
 		else
 		{
@@ -611,15 +611,15 @@ PVOID COffsets::ClientStatic()
 
 	ptr = (uintptr_t)(client_static_t*)(ptr - offsetof(client_static_t, netchan.incoming_sequence));
 
-	/*auto ptr = *(PDWORD)(FindPush((PCHAR)"Received signon %i when at %i\n", Module[HW].base, Module[HW].end, 0x12 + 0x1));  // hw.dll+1E383 - A3 BCCB8904           - mov [hw.dll+105CBBC],eax { [00000000] }
+	
 
-	ptr = (uintptr_t)(client_static_t*)(ptr - offsetof(client_static_t, signon));
 
-	if (AddressNotInSpace(ptr, Module[HW].base, Module[HW].end))
-	{
-		Utils::TraceLog(V("%s: not found.\n"), V(__FUNCTION__));
-		return NULL;
-	}*/
+
+
+
+
+
+
 
 	return (PVOID)ptr;
 }
@@ -638,15 +638,15 @@ PVOID COffsets::ClientState()
 
 	ptr = (uintptr_t)(client_state_t*)(ptr - offsetof(client_state_t, commands));
 
-	/*auto ptr = *(PDWORD)((uintptr_t)g_pStudio->PlayerInfo + 0xA + 0x2); //hw.dll+87B8A - 3B 05 8433A404        - cmp eax,[hw.dll+1203384] { [00000000] }
+	
 
-	ptr = (uintptr_t)(client_state_t*)(ptr - offsetof(client_state_t, maxclients));
 
-	if (AddressNotInSpace(ptr, Module[HW].base, Module[HW].end))
-	{
-		Utils::TraceLog(V("%s: not found.\n"), V(__FUNCTION__));
-		return NULL;
-	}*/
+
+
+
+
+
+
 
 	return (PVOID)ptr;
 }

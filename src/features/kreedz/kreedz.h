@@ -9,8 +9,8 @@ public:
 
 	void Run(usercmd_s* cmd);
 
-	// Render-context update (called from HandleGLSceneUpdate): the ONLY place
-	// where kreedz is allowed to raytrace. Run()/CL_CreateMove must never trace.
+	
+	
 	void Frame();
 
 private:

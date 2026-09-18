@@ -68,7 +68,7 @@ void Game::EstimateGait()
 
 	QAngle QAngles(pmove->angles);
 
-	//g_Engine.Con_NPrintf(19, "QAngles.y %f", QAngles.y);
+	
 
 	Vector est_velocity = pmove->origin - g_pGlobals->m_vecPreviousGaitOrigin;
 
@@ -123,9 +123,9 @@ void Game::EstimateGait()
 			g_pGlobals->m_flGaitYaw += g_pGlobals->m_flYawDiff;
 			g_pGlobals->m_flGaitYaw -= int64(g_pGlobals->m_flGaitYaw / 360) * 360;
 			g_pGlobals->m_flGaitMovement = 0;
-		/*	g_Engine.Con_NPrintf(16, "flYawDiff %f", g_pGlobals->m_flYawDiff);
-			g_Engine.Con_NPrintf(17, "m_flYawModifier %f", g_pGlobals->m_flYawModifier);
-			g_Engine.Con_NPrintf(18, "flYaw %f", g_pGlobals->m_flYaw);*/
+		
+
+
 		}
 		else
 		{
@@ -138,10 +138,10 @@ void Game::EstimateGait()
 				g_pGlobals->m_flGaitYaw = -180;
 		}
 
-		{ // CalculateYawBlend
+		{ 
 			float maxyaw = 255.0f;
 
-			// calc side to side turning
+			
 			float flYaw = fmod(QAngles.y - g_pGlobals->m_flGaitYaw, 360.f);
 
 			if (flYaw < -180)
@@ -171,14 +171,14 @@ void Game::EstimateGait()
 			if (!g_pMiscellaneous->m_iChokedCommands)
 			{
 				g_pGlobals->m_flBlendYaw = maxyaw - flYaw;
-				//g_Engine.Con_NPrintf(14, "m_flBlendYaw %f", g_pGlobals->m_flBlendYaw);
+				
 			}
 
 			g_pGlobals->m_flYaw = g_pGlobals->m_flBlendYaw;
 		}
 	}
 
-	//g_Engine.Con_NPrintf(15, "m_flGaityaw %f", g_pGlobals->m_flGaitYaw);
+	
 }
 
 bool Game::TraceShield(const Vector& vecSrc, const Vector& vecAdjustedOrigin, const QAngle& QInAngles, const int& iPlayer, const float& flCustomDistance)
@@ -250,8 +250,8 @@ bool Game::FindSpanningContexts(cl_entity_t* ent, float targettime, position_his
 	bool extrapolate = true;
 
 	int imod = ent->current_position;
-	int i0 = (imod - 0) & HISTORY_MASK;	// curpos (lerp end)
-	int i1 = (imod - 1) & HISTORY_MASK;	// oldpos (lerp start)
+	int i0 = (imod - 0) & HISTORY_MASK;	
+	int i1 = (imod - 1) & HISTORY_MASK;	
 
 	for (int i = 1; i < HISTORY_MAX - 1; i++)
 	{
@@ -286,11 +286,11 @@ bool Game::BacktrackPlayer(cl_entity_s* pGameEntity, int lerp_msec, Vector& orig
 	static cvar_t* ex_interp = g_ClientCvarsMap["ex_interp"];
 	static cvar_t* sv_unlagpush = g_ClientCvarsMap["sv_unlagpush"];
 
-	// Player not wanting lag compensation
+	
 	if (!sv_unlag->value || !cl_lw->value || !cl_lc->value)
 		return false;
 
-	// Get true latency
+	
 	const double fakelatency = g_pMiscellaneous->m_bFakeLatencyActive ? cvars::misc.fakelatency_amount / 1000.0 : 0.0;
 
 	double latency = client_state->frames[client_state->parsecountmod].latency + fakelatency;
@@ -303,33 +303,33 @@ bool Game::BacktrackPlayer(cl_entity_s* pGameEntity, int lerp_msec, Vector& orig
 	if (cl_updaterate->value > 10.f)
 		update_interval = 1.0 / double(cl_updaterate->value);
 
-	// Fixup delay based on message interval (cl_updaterate, default 20 so 50 msec)
-	//latency -= update_interval;
+	
+	
 
-	// Further fixup due to client side delay because packets arrive 1/2 through the frame loop, on average
-	//latency -= (g_Local->m_flFrameTime/* * 0.5*/);
+	
+	
 
-	// Absolute bounds on lag compensation
+	
 	double correct = min(LAG_COMPENSATION_DATA_TIME, latency);
 
-	// See if server is applying a lower cap
+	
 	if (sv_maxunlag->value)
 	{
-		// Make sure it's not negative
+		
 		if (sv_maxunlag->value < 0.f)
 			sv_maxunlag->value = 0.f;
 
-		// Apply server cap
+		
 		correct = min(correct, sv_maxunlag->value);
 	}
 
-	// Get true timestamp
+	
 	const double realtime = client_state->time;
 
-	// Figure out timestamp for which we are looking for data
+	
 	double targettime = realtime - correct;
 
-	// Remove lag based on player interpolation, as well
+	
 	double interptime = (lerp_msec == -1) ? ex_interp->value : (lerp_msec / 1000.0);
 
 	if (interptime > 0.1)
@@ -340,10 +340,10 @@ bool Game::BacktrackPlayer(cl_entity_s* pGameEntity, int lerp_msec, Vector& orig
 
 	targettime -= interptime;
 
-	// Server can apply a fudge, probably not needed, defaults to 0.0f
+	
 	targettime += sv_unlagpush->value;
 
-	// Cap target to present time, of course
+	
 	targettime = min(realtime, targettime);
 
 	position_history_t *newer, *older;
@@ -810,7 +810,7 @@ void Game::GetHitboxes(cl_entity_s* pGameEntity)
 		if (!pstudiohdr || !pstudiohdr->numbodyparts)
 			return;
 
-		if (!pCStudioModelRenderer->m_pPlayerInfo && pCStudioModelRenderer->m_pCurrentEntity && pCStudioModelRenderer->m_pCurrentEntity->curstate.weaponmodel) // Skip player weapon
+		if (!pCStudioModelRenderer->m_pPlayerInfo && pCStudioModelRenderer->m_pCurrentEntity && pCStudioModelRenderer->m_pCurrentEntity->curstate.weaponmodel) 
 			return;
 
 		if (pstudiohdr->numhitboxes > HITBOX_MAX)

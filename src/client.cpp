@@ -136,7 +136,7 @@ static int CL_DriftInterpolationAmount(int interp)
 		}
 	}
 
-	//g_Engine.Con_NPrintf(0, "lerp_msec: %i", lerp_msec);
+	
 
 	return lerp_msec;
 }
@@ -148,7 +148,7 @@ static int Host_FilterTime(float passedTime)
 
 	if (!g_pGlobals->m_bIsUnloadingLibrary && g_pMiscellaneous.get())
 	{
-		// Host timescale emulation: only applied while the speed key is held.
+		
 		g_pMiscellaneous->GameSpeed();
 
 		passedTime *= g_pMiscellaneous->GetGameSpeedMultiplier();
@@ -164,11 +164,11 @@ static void SCR_UpdateScreen()
 
 	if (!g_pGlobals->m_bIsUnloadingLibrary)
 	{
-		/*if (cvar.norefresh)
-		{
-			               
-				return
-		}*/
+		
+
+
+
+
 	}
 
 	((SCR_UpdateScreen_t)scr_update_screen.m_OrigFunc)();
@@ -221,7 +221,7 @@ static void CL_CreateMove(float frametime, usercmd_s* cmd, int active)
 
 							QAngles.Normalize();
 
-							g_pNoSpread->GetSpreadOffset(g_Weapon->m_iRandomSeed, 1, QAngles, QAngles, cvars::misc.nospread_mode + 1); // +1: combo index 0..2 -> NOSPREAD_PITCH_YAW..NOSPREAD_PITCH_YAW_ROLL
+							g_pNoSpread->GetSpreadOffset(g_Weapon->m_iRandomSeed, 1, QAngles, QAngles, cvars::misc.nospread_mode + 1); 
 
 							Game::MakeAngle(QAngles, cmd);
 						}
@@ -328,7 +328,7 @@ static void HUD_Frame(double frametime)
 		if (g_ClientCvarsMap["gl_ztrick_old"])
 			g_ClientCvarsMap["gl_ztrick_old"]->value = 0.f;
 
-		// local only: sandbox.cpp still answers server cvar checks with stock "fps_max 100"
+		
 		if (cvars::misc.fps_unlock && g_ClientCvarsMap["fps_max"])
 			g_ClientCvarsMap["fps_max"]->value = 999.f;
 
@@ -1044,8 +1044,8 @@ static void pfnFillRGBABlend(int x, int y, int width, int height, int r, int g, 
 
 static void IN_MouseMove(float frametime, usercmd_t* cmd)
 {
-	//if (!IS_NULLPTR(g_pMenu) && g_pMenu->IsOpened())
-	//	return;
+	
+	
 
 	if (!in_mouse_move.IsHooked())
 		return;
