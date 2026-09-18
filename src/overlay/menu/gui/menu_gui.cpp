@@ -6,6 +6,7 @@
 CMenuGui::CMenuGui() 
 	: m_pPopupModal(std::make_unique<CMenuPopupModal>())
 {
+	memset(m_search, 0, sizeof(m_search));
 }
 
 bool CMenuGui::Begin(std::string name, const ImVec2& size)
@@ -159,11 +160,15 @@ void CMenuGui::TabBackground()
 		cur_x += ch_size.x;
 	}
 
-	static char search[64];
 	ImGui::SetCursorPos(ImVec2(s.x - 188.f, 15.f));
 	ImGui::PushItemWidth(150.f);
-	ImGui::InputTextWithHint("##search", "Search...", search, sizeof(search));
+	ImGui::InputTextWithHint("##search", "Search...", m_search, sizeof(m_search));
 	ImGui::PopItemWidth();
+}
+
+const char* CMenuGui::SearchText()
+{
+	return m_search;
 }
 
 bool CMenuGui::TabList(std::vector<TabWidgetsData>& data, int& selected, int& hovered)

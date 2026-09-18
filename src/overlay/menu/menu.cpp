@@ -21,6 +21,11 @@ bool CMenu::IsOpened()
 	return m_bIsOpened;
 }
 
+const char* CMenu::SearchText()
+{
+	return m_pGui->SearchText();
+}
+
 void CMenu::Open()
 {
 	if (!m_bIsOpened)
