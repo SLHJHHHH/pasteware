@@ -40,7 +40,7 @@ bool HookEngineMsg(const svc_commands_e& index, const pfnEngineMessage& pfn)
 		pClientEngineMsgs++;
 	}
 
-	Utils::TraceLog(V("> %s: failed to hook svc index %i.\n"), V(__FUNCTION__), index);
+	Utils::TraceLog(V(">> %s: failed to hook svc index %i.\n"), V(__FUNCTION__), index);
 
 	return false;
 }
@@ -64,7 +64,7 @@ bool UnHookEngineMsg(const svc_commands_e& index)
 		pClientEngineMsgs++;
 	}
 
-	Utils::TraceLog(V("> %s: failed to unhook svc index %i.\n"), V(__FUNCTION__), index);
+	Utils::TraceLog(V(">> %s: failed to unhook svc index %i.\n"), V(__FUNCTION__), index);
 
 	return false;
 }

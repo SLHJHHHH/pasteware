@@ -119,7 +119,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateMapFile>true</GenerateMapFile>
-      <AdditionalDependencies>vgui.lib;libMinHook.x86.lib;OpenGL32.lib;VMProtectSDK32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>vgui.lib;OpenGL32.lib;VMProtectSDK32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)libraries;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -146,6 +146,18 @@
     <ClCompile Include="includes\ImGui\imgui_impl_win32.cpp" />
     <ClCompile Include="includes\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="includes\ImGui\imgui_widgets_custom.cpp" />
+    <ClCompile Include="includes\MinHook\buffer.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="includes\MinHook\hook.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="includes\MinHook\trampoline.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="includes\MinHook\hde\hde32.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="includes\SimpleIni\ConvertUTF.cpp" />
     <ClCompile Include="includes\Soil\image_DXT.cpp" />
     <ClCompile Include="includes\Soil\image_helper.cpp" />
@@ -195,8 +207,10 @@
     <ClCompile Include="src\messages\usermsg.cpp" />
     <ClCompile Include="src\opengl.cpp" />
     <ClCompile Include="src\overlay\glscreenupdate.cpp" />
+    <ClCompile Include="src\overlay\font_atlas.cpp" />
     <ClCompile Include="src\overlay\menu\common\menu_hotkeys.cpp" />
     <ClCompile Include="src\overlay\menu\common\menu_settings_list.cpp" />
+    <ClCompile Include="src\overlay\menu\gui\components.cpp" />
     <ClCompile Include="src\overlay\menu\gui\menu_fade_bg.cpp" />
     <ClCompile Include="src\overlay\menu\gui\menu_gui.cpp" />
     <ClCompile Include="src\overlay\menu\gui\menu_popup_modal.cpp" />

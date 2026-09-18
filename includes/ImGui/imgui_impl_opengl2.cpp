@@ -1,7 +1,10 @@
 #include "framework.h"
-#include "menu/misc/fonts/Montserrat-Regular.h"
+
+#include "overlay/font_atlas.h"
+#include "overlay/images/icons_atlas.h"
 
 #include "imgui.h"
+
 #include "imgui_impl_opengl2.h"
 #if defined(_MSC_VER) && _MSC_VER <= 1500 // MSVC 2008 or earlier
 #include <stddef.h>     // intptr_t
@@ -69,6 +72,9 @@
 
 #include "overlay/images/defuser/defuser.h"
 
+#include "overlay/font_atlas.h"
+#include "overlay/images/icons_atlas.h"
+
 GLuint g_FontTexture = 0;
 ImFont* g_pFontList[MAX_FONTS];
 ImFont* g_pPrimTextFont;
@@ -101,16 +107,15 @@ void ImGui_ImplOpenGL2_Init()
 	std::string sFontPath = g_pGlobals->m_sSystemDisk + ":\\Windows\\Fonts\\verdana.ttf";
 
 	g_pFontList[ProggyClean_13px] = GImGui->IO.Fonts->AddFontDefault();
-	ImFontConfig prim_config;
-	prim_config.FontDataOwnedByAtlas = false;
-	g_pPrimTextFont = GImGui->IO.Fonts->AddFontFromMemoryTTF(Intermedium, sizeof(Intermedium), 17.f, &prim_config, GImGui->IO.Fonts->GetGlyphRangesCyrillic());
-	g_pPrimIconFont = GImGui->IO.Fonts->AddFontFromMemoryTTF(Icons, sizeof(Icons), 20.f, &prim_config, GImGui->IO.Fonts->GetGlyphRangesCyrillic());
 
 	for (int verdana_fontnum = 1; verdana_fontnum <= 25; verdana_fontnum++)
 	{
 		g_pFontList[verdana_fontnum] = GImGui->IO.Fonts->AddFontFromFileTTF(sFontPath.c_str(), 
 			static_cast<float>(verdana_fontnum), &config, GImGui->IO.Fonts->GetGlyphRangesCyrillic());
 	}
+
+	g_pPrimTextFont = g_pFontList[17] ? g_pFontList[17] : g_pFontList[ProggyClean_13px];
+	g_pPrimIconFont = g_pFontList[20] ? g_pFontList[20] : g_pFontList[ProggyClean_13px];
 }
 
 void ImGui_ImplOpenGL2_Shutdown()
@@ -261,6 +266,10 @@ bool ImGui_ImplOpenGL2_CreateFontsTexture()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+	static const std::string_view icons_json_str = R"({"atlas":{"type":"mtsdf","distanceRange":16,"size":72,"width":300,"height":300,"yOrigin":"bottom"},"glyphs":[{"unicode":65,"advance":1,"atlasBounds":{"left":89.5,"bottom":7.5,"right":161.5,"top":80.5}},{"unicode":66,"advance":1,"atlasBounds":{"left":165.5,"bottom":0.5,"right":234.5,"top":70.5}},{"unicode":67,"advance":1,"atlasBounds":{"left":0.5,"bottom":0.5,"right":69.5,"top":76.5}},{"unicode":68,"advance":1,"atlasBounds":{"left":165.5,"bottom":71.5,"right":234.5,"top":145.5}},{"unicode":69,"advance":1,"atlasBounds":{"left":165.5,"bottom":223.5,"right":237.5,"top":299.5}},{"unicode":70,"advance":1,"atlasBounds":{"left":89.5,"bottom":223.5,"right":164.5,"top":299.5}},{"unicode":71,"advance":1,"atlasBounds":{"left":89.5,"bottom":81.5,"right":164.5,"top":157.5}}]})";
+
+	render::font_icons.load_from_memory(icons_atlas_bytes, sizeof(icons_atlas_bytes), icons_json_str);
 
 	GImGui->IO.Fonts->TexID = (ImTextureID)(intptr_t)g_FontTexture;
 
