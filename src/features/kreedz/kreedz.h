@@ -6,11 +6,14 @@ public:
 	bool m_bSlowWalkKey;
 	bool m_bFastRunKey;
 	bool m_bDeGenKey;
+	bool m_bEdgeJumpKey;
 
 	void Run(usercmd_s* cmd);
 
-	
-	
+	void EdgeJump(usercmd_s* cmd);
+
+
+
 	void Frame();
 
 private:

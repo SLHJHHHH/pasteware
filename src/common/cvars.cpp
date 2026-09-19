@@ -60,6 +60,11 @@ static void FileRageHandle()
 	g_pSettings->Key("rage.aim.low_fps_mitigations.dont_trace_legs_points", cvars::ragebot.raim_low_fps_mitigations[2], true);
 	g_pSettings->Key("rage.resolver.pitch", cvars::ragebot.raim_resolver_pitch, 1);
 	g_pSettings->Key("rage.resolver.yaw", cvars::ragebot.raim_resolver_yaw);
+	g_pSettings->Key("rage.resolver.auto", cvars::ragebot.raim_resolver_auto);
+	g_pSettings->Key("rage.resolver.auto.misses", cvars::ragebot.raim_resolver_misses, 3);
+	g_pSettings->Key("rage.aim.safe_point", cvars::ragebot.raim_safepoint);
+	g_pSettings->Key("rage.aim.auto_force_damage", cvars::ragebot.raim_auto_force_damage);
+	g_pSettings->Key("rage.aim.auto_force_damage.hp", cvars::ragebot.raim_auto_force_damage_hp, 40);
 
 	for (int weapon_idx = 1; weapon_idx < WEAPON_MAX_COUNT; weapon_idx++)
 	{
@@ -111,6 +116,15 @@ static void FileRageHandle()
 	g_pSettings->Key("anti-aimbot.roll", cvars::ragebot.aa_roll);
 	g_pSettings->Key("anti-aimbot.roll.static", cvars::ragebot.aa_roll_static);
 	g_pSettings->Key("anti-aimbot.untrusted_checkes", cvars::ragebot.aa_untrusted_checks);
+	g_pSettings->Key("anti-aimbot.freestanding", cvars::ragebot.aa_freestanding);
+	g_pSettings->Key("anti-aimbot.freestanding.mode", cvars::ragebot.aa_freestanding_mode);
+	g_pSettings->Key("anti-aimbot.freestanding.key", cvars::ragebot.aa_freestanding_key);
+	g_pSettings->Key("anti-aimbot.freestanding.distance", cvars::ragebot.aa_freestanding_distance, 48.f);
+	g_pSettings->Key("anti-aimbot.on_shot", cvars::ragebot.aa_on_shot);
+	g_pSettings->Key("anti-aimbot.on_shot.time", cvars::ragebot.aa_on_shot_time, 0.2f);
+	g_pSettings->Key("anti-aimbot.fake_duck", cvars::ragebot.fake_duck);
+	g_pSettings->Key("anti-aimbot.fake_duck.key", cvars::ragebot.fake_duck_key);
+	g_pSettings->Key("anti-aimbot.fake_duck.choke", cvars::ragebot.fake_duck_choke, 2);
 
 	g_pSettings->Section("fakelag");
 	g_pSettings->Key("fakelag.enabled", cvars::ragebot.fakelag_enabled);
@@ -132,6 +146,11 @@ static void FileLegitHandle()
 	g_pSettings->Key("legit.desync.helper", cvars::legitbot.desync_helper);
 	g_pSettings->Key("legit.target_switch_delay", cvars::legitbot.target_switch_delay, 200);
 	g_pSettings->Key("legit.aim.automatic.scope", cvars::legitbot.aim_auto_scope);
+	g_pSettings->Key("legit.humanizer", cvars::legitbot.humanizer);
+	g_pSettings->Key("legit.humanizer.reaction.min", cvars::legitbot.humanizer_reaction_min, 80);
+	g_pSettings->Key("legit.humanizer.reaction.max", cvars::legitbot.humanizer_reaction_max, 160);
+	g_pSettings->Key("legit.humanizer.jitter", cvars::legitbot.humanizer_jitter, 12);
+	g_pSettings->Key("legit.humanizer.curve", cvars::legitbot.humanizer_curve, 25);
 	g_pSettings->Key("legit.aim.smooth.independence_fps", cvars::legitbot.aim_smooth_independence_fps, true);
 	g_pSettings->Key("legit.aim.block_attack_after_kill", cvars::legitbot.aim_block_attack_after_kill);
 	g_pSettings->Key("legit.aim.dont_shoot_in_shield", cvars::legitbot.aim_dont_shoot_in_shield);
@@ -430,6 +449,51 @@ g_pSettings->Key("effects.poly_filter", cvars::visuals.effects_poly_filter);
 g_pSettings->Key("effects.poly_filter.color", cvars::visuals.effects_poly_filter_color, "255,255,255,255");
 g_pSettings->Key("main.allow_resize", cvars::visuals.main_allow_resize, true);
 g_pSettings->Key("main.notifications", cvars::visuals.main_notifications, true);
+
+	g_pSettings->Section("indicators");
+	g_pSettings->Key("indicators.enabled", cvars::visuals.indicators);
+	g_pSettings->Key("indicators.position", cvars::visuals.indicators_pos);
+	g_pSettings->Key("indicators.elements.choke", cvars::visuals.indicators_elements[0], true);
+	g_pSettings->Key("indicators.elements.doubletap", cvars::visuals.indicators_elements[1], true);
+	g_pSettings->Key("indicators.elements.fakelag", cvars::visuals.indicators_elements[2], true);
+	g_pSettings->Key("indicators.elements.speed", cvars::visuals.indicators_elements[3], true);
+	g_pSettings->Key("indicators.elements.antiaim", cvars::visuals.indicators_elements[4], true);
+	g_pSettings->Key("indicators.color", cvars::visuals.indicators_color, "255,80,190,255");
+
+	g_pSettings->Section("hitsound");
+	g_pSettings->Key("hitsound.enabled", cvars::visuals.hitsound);
+	g_pSettings->Key("hitsound.type", cvars::visuals.hitsound_type);
+	g_pSettings->Key("hitsound.volume", cvars::visuals.hitsound_volume, 1.f);
+	g_pSettings->Key("hitsound.headshot.pitch", cvars::visuals.hitsound_headshot_pitch, 130);
+
+	g_pSettings->Section("hitmarker");
+	g_pSettings->Key("hitmarker.enabled", cvars::visuals.hitmarker);
+	g_pSettings->Key("hitmarker.time", cvars::visuals.hitmarker_time, 0.6f);
+	g_pSettings->Key("hitmarker.size", cvars::visuals.hitmarker_size, 8.f);
+	g_pSettings->Key("hitmarker.color", cvars::visuals.hitmarker_color, "255,255,255,255");
+	g_pSettings->Key("hitmarker.headshot.color", cvars::visuals.hitmarker_headshot_color, "255,80,190,255");
+
+	g_pSettings->Section("damage_log");
+	g_pSettings->Key("damage_log.enabled", cvars::visuals.damage_log);
+	g_pSettings->Key("damage_log.position", cvars::visuals.damage_log_pos);
+	g_pSettings->Key("damage_log.time", cvars::visuals.damage_log_time, 4.f);
+	g_pSettings->Key("damage_log.color", cvars::visuals.damage_log_color, "255,255,255,255");
+	g_pSettings->Key("damage_log.headshot.color", cvars::visuals.damage_log_headshot_color, "255,80,190,255");
+
+	g_pSettings->Section("grenade_preview");
+	g_pSettings->Key("grenade_preview.enabled", cvars::visuals.grenade_preview, true);
+	g_pSettings->Key("grenade_preview.timer", cvars::visuals.grenade_preview_timer, true);
+	g_pSettings->Key("grenade_preview.color", cvars::visuals.grenade_preview_color, "255,255,60,255");
+
+	g_pSettings->Section("spectator_list");
+	g_pSettings->Key("spectator_list.enabled", cvars::visuals.spectator_list);
+	g_pSettings->Key("spectator_list.position", cvars::visuals.spectator_list_pos);
+	g_pSettings->Key("spectator_list.color", cvars::visuals.spectator_list_color, "255,255,255,255");
+
+	g_pSettings->Section("backtrack_visual");
+	g_pSettings->Key("backtrack.positions", cvars::visuals.backtrack_positions);
+	g_pSettings->Key("backtrack.positions.color", cvars::visuals.backtrack_positions_color, "160,160,160,255");
+	g_pSettings->Key("backtrack.positions.best_tick", cvars::visuals.backtrack_positions_best_tick, true);
 }
 
 static void FileKreedzHandle()
@@ -468,6 +532,10 @@ static void FileKreedzHandle()
 
 	g_pSettings->Key("kreedz.legit_strafe", cvars::kreedz.legit_strafe);
 	g_pSettings->Key("kreedz.legit_strafe.speed", cvars::kreedz.legit_strafe_speed, 40.f);
+
+	g_pSettings->Key("kreedz.edgejump", cvars::kreedz.edgejump);
+	g_pSettings->Key("kreedz.edgejump.key", cvars::kreedz.edgejump_key);
+	g_pSettings->Key("kreedz.edgejump.distance", cvars::kreedz.edgejump_distance, 16.f);
 }
 
 static void FileMiscHandle()
@@ -476,7 +544,7 @@ static void FileMiscHandle()
 	g_pSettings->Key("automatic.reload", cvars::misc.automatic_reload);
 	g_pSettings->Key("automatic.pistol", cvars::misc.automatic_pistol);
 	g_pSettings->Key("nospread.enabled", cvars::misc.nospread);
-	g_pSettings->Key("nospread.mode", cvars::misc.nospread_mode, 2); 
+	g_pSettings->Key("nospread.mode", cvars::misc.nospread_mode, 2);
 	g_pSettings->Key("fps.unlock", cvars::misc.fps_unlock, true);
 	g_pSettings->Key("fps.developer", cvars::misc.fps_developer);
 	g_pSettings->Key("fakelatency.enabled", cvars::misc.fakelatency);
@@ -529,13 +597,18 @@ static void FileMiscHandle()
 	g_pSettings->Key("knifebot.conditions.dont_shoot.spectators", cvars::misc.kb_conditions[0], true);
 	g_pSettings->Key("knifebot.conditions.dont_shoot.in_back", cvars::misc.kb_conditions[1]);
 	g_pSettings->Key("knifebot.conditions.dont_shoot.in_shield", cvars::misc.kb_conditions[2], true);
+
+	g_pSettings->Section("kill_say");
+	g_pSettings->Key("kill_say.enabled", cvars::misc.kill_say);
+	g_pSettings->Key("kill_say.headshot_only", cvars::misc.kill_say_headshot_only);
+	g_pSettings->Key("kill_say.text", cvars::misc.kill_say_text, "gg %s");
 }
 
 void InitClientCvarsMap()
 {
 	cvar_t* pcvarslist = nullptr;
 
-	do 
+	do
 	{
 		if (!pcvarslist)
 			pcvarslist = g_pEngine->pfnGetCvarList();

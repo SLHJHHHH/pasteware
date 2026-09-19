@@ -6,11 +6,15 @@ void CHitRegister::AllocateMemory()
 {
 	if (!pBaseInfo.get())
 		pBaseInfo = std::make_unique<CBaseHitInfo>();
+
+	m_iResolverTarget = -1;
 }
 
 void CHitRegister::FreeMemory()
 {
 	DELETE_UNIQUE_PTR(pBaseInfo);
+
+	m_iResolverTarget = -1;
 }
 
 bool CHitRegister::RegisterHit(int index, char* pszSoundFile)
@@ -107,9 +111,9 @@ bool CHitRegister::RegisterHit(int index, char* pszSoundFile)
 			if (pBaseInfo->m_iDamage <= g_Player[index]->m_iHealth)
 				g_Player[index]->m_iHealth -= pBaseInfo->m_iDamage;
 
-			
 
-			
+
+
 
 
 
@@ -146,6 +150,8 @@ bool CHitRegister::RegisterHit(int index, char* pszSoundFile)
 	}
 
 	pBaseInfo->m_flTimeStamp = static_cast<float>(client_state->time);
+
+	RegisterHitEvent(index, pBaseInfo->m_iDamage, pBaseInfo->m_bHeadshot);
 
 	ClearImpactInfo();
 
@@ -195,9 +201,9 @@ void CHitRegister::Update(usercmd_s* cmd)
 			vecSpreadDir.Normalize();
 
 			Vector vecEnd = g_Local->m_vecEyePos + vecSpreadDir * g_Weapon->m_flDistance;
-			
-			
-			
+
+
+
 			g_BulletTracers.push_back({ g_Local->m_vecEyePos, vecEnd, client_state->time });
 		}
 		else if (g_Weapon.IsKnife() && ((m_bIsInAttack && !prevattack) || (m_bIsInAttack2 && !prevattack2)))
@@ -214,7 +220,7 @@ void CHitRegister::Update(usercmd_s* cmd)
 
 			const float flDistance = m_bIsInAttack ? 80.f : 64.f;
 			Vector vecKnifeEnd = g_Local->m_vecEyePos + vecDir * flDistance;
-			
+
 			g_BulletTracers.push_back({ g_Local->m_vecEyePos, vecKnifeEnd, client_state->time });
 		}
 
@@ -335,13 +341,13 @@ void CHitRegister::Update(usercmd_s* cmd)
 					hitbox_matrix.SetOrigin(matrix_origin);
 				}
 
-				auto ray_fraction = -1.f; 
+				auto ray_fraction = -1.f;
 				auto ray_hitside = 0;
 				auto ray_startsolid = false;
 
 				if (Math::IntersectRayWithOBB(g_Local->m_vecEyePos, vecSpreadDir * g_Weapon->m_flDistance, hitbox_matrix,
 					g_Player[i]->m_vecOBBMin[j], g_Player[i]->m_vecOBBMax[j], ray_fraction, ray_hitside, ray_startsolid))
-				{	
+				{
 					bool bSkipHitbox = false;
 
 					for (int k = 0; k < HITBOX_MAX; k++)
@@ -364,7 +370,7 @@ void CHitRegister::Update(usercmd_s* cmd)
 						auto ray_hitside2 = 0;
 						auto ray_startsolid2 = false;
 
-						if (Math::IntersectRayWithOBB(g_Local->m_vecEyePos, vecSpreadDir * g_Weapon->m_flDistance, hitbox_matrix, 
+						if (Math::IntersectRayWithOBB(g_Local->m_vecEyePos, vecSpreadDir * g_Weapon->m_flDistance, hitbox_matrix,
 							g_Player[i]->m_vecOBBMin[k], g_Player[i]->m_vecOBBMax[k], ray_fraction2, ray_hitside2, ray_startsolid2))
 						{
 							if (ray_fraction2 <= ray_fraction)
@@ -393,8 +399,24 @@ void CHitRegister::Update(usercmd_s* cmd)
 		m_iMissedShots = 0;
 	}
 
-	
-	
+	// resolver brute force: count consecutive misses per player and report the worst one
+	if (cvars::ragebot.raim_resolver_auto && m_iImpactIndex > 0 && m_iImpactIndex <= MAX_CLIENTS)
+	{
+		const int misses = ++m_iMissStreak[m_iImpactIndex];
+
+		if (misses >= std::clamp(cvars::ragebot.raim_resolver_misses, 1, 10))
+		{
+			m_iMissStreak[m_iImpactIndex] = 0;
+			m_iResolverTarget = m_iImpactIndex;
+
+			g_Engine.Con_Printf("[resolver] %i misses on %s, forcing next yaw option\n", misses, g_Player[m_iImpactIndex]->m_szPrintName);
+
+			ClearImpactInfo();
+		}
+	}
+
+
+
 }
 
 void CHitRegister::Clear()

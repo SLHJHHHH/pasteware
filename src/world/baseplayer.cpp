@@ -98,6 +98,8 @@ void CBasePlayer::UpdatePlayer(CBaseEntInfo* pPlayer, cl_entity_s* pGameEntity)
 	pPlayer->m_iEntIndex = pGameEntity->index;
 	pPlayer->m_iMessageNum = pGameEntity->curstate.messagenum;
 	pPlayer->m_iTeamNum = Game::GetTeamNum(g_PlayerExtraInfo.m_pszTeamName(pPlayer->m_iEntIndex));
+	pPlayer->m_iObserverState = pGameEntity->curstate.iuser1;
+	pPlayer->m_iObserverIndex = pGameEntity->curstate.iuser2;
 	pPlayer->m_iSequence = SEQUENCE_IDLE;
 	pPlayer->m_iSequenceFrame = 0;
 	pPlayer->m_iMoney = -1;
@@ -117,7 +119,7 @@ void CBasePlayer::UpdatePlayer(CBaseEntInfo* pPlayer, cl_entity_s* pGameEntity)
 
 	pPlayer->m_bIsInPVS = true;
 	pPlayer->m_flHistory = static_cast<float>(client_state->time);
-	pPlayer->m_flLastTimeInPVS = static_cast<float>(client_state->time);	
+	pPlayer->m_flLastTimeInPVS = static_cast<float>(client_state->time);
 
 	if ((pPlayer->m_bIsDead = IsPlayerDead(pGameEntity)))
 		return;
@@ -162,7 +164,7 @@ void CBasePlayer::UpdatePlayer(CBaseEntInfo* pPlayer, cl_entity_s* pGameEntity)
 	pPlayer->m_flGroundAngle = RAD2DEG(acos(tr->plane.normal.z));
 	pPlayer->m_flDistance = g_Local->m_vecOrigin.Distance(pPlayer->m_vecOrigin);
 	pPlayer->m_bIsOnGround = pPlayer->m_flHeight < 1.f;
-	
+
 	Game::GetWeaponModelName(pGameEntity->curstate.weaponmodel, pPlayer->m_szWeaponModelName);
 
 	pPlayer->m_bHasShield = strstr(pPlayer->m_szWeaponModelName, "/shield/") ? true : false;
@@ -229,7 +231,7 @@ void CBasePlayer::ClearPlayer(CBaseEntInfo* pPlayer)
 	pPlayer->m_vecOrigin.Clear();
 	pPlayer->m_vecEyePos.Clear();
 	pPlayer->m_vecVelocity.Clear();
-	
+
 	Game::GetBoundBox(pPlayer->m_vecBoundBoxMins, pPlayer->m_vecBoundBoxMaxs, HULL_REGULAR);
 
 	for (int i = 0; i < HITBOX_MAX; i++)

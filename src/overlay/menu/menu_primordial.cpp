@@ -102,7 +102,10 @@ namespace
 		{ "Kreedz", &cvars::kreedz.key },
 		{ "Fast run", &cvars::kreedz.fastrun_key },
 		{ "Slow walk", &cvars::kreedz.slowwalk_key },
-		{ "DeGen", &cvars::kreedz.degen_key }
+		{ "DeGen", &cvars::kreedz.degen_key },
+		{ "Edge jump", &cvars::kreedz.edgejump_key },
+		{ "Freestanding", &cvars::ragebot.aa_freestanding_key },
+		{ "Fake duck", &cvars::ragebot.fake_duck_key }
 	};
 
 	const int g_global_ids[] = { WEAPON_NONE };
@@ -199,7 +202,7 @@ void CMenu::Draw()
 		if (section[AIMBOT] == 0)
 		{
 			float ya = a.y;
-			panel("Primary", ImVec2(a.x, ya), ImVec2(col3_w, 290.f), [&]()
+			panel("Primary", ImVec2(a.x, ya), ImVec2(col3_w, 275.f), [&]()
 			{
 				components::checkbox("Enabled", &cvars::legitbot.active, &cvars::legitbot.aim_key);
 				components::keybind("Aim key", &cvars::legitbot.aim_key);
@@ -209,17 +212,17 @@ void CMenu::Draw()
 				components::checkbox("Smoke check", &cvars::legitbot.aim_smoke_check);
 				components::checkbox("Dynamic FOV", &cvars::legitbot.aim_dynamic_fov);
 			});
-			panel("Recoil", ImVec2(a.x + col3_w + 10.f, ya), ImVec2(col3_w, 290.f), [&]()
+			panel("Recoil", ImVec2(a.x + col3_w + 10.f, ya), ImVec2(col3_w, 245.f), [&]()
 			{
 				components::checkbox("Return angles", &cvars::legitbot.aim_recoil_return_angles);
 				components::checkbox("No mousemove trigger", &cvars::legitbot.aim_recoil_no_mousemove_trigger);
 				components::checkbox("Disable smooth auto", &cvars::legitbot.aim_recoil_disable_smooth_auto);
-			});
-			panel("Protections", ImVec2(a.x + (col3_w + 10.f) * 2.f, ya), ImVec2(col3_w, 290.f), [&]()
-			{
 				components::checkbox("Position adjustment", &cvars::legitbot.position_adjustment);
 				components::checkbox("Desync helper", &cvars::legitbot.desync_helper);
 				components::slider_int("Flashed check", &cvars::legitbot.aim_flashed_check, 0, 100, "%d", "%");
+			});
+			panel("Protections", ImVec2(a.x + (col3_w + 10.f) * 2.f, ya), ImVec2(col3_w, 340.f), [&]()
+			{
 				components::checkbox("Shoot through teammates", &cvars::legitbot.aim_shoot_through_teammates);
 				components::checkbox("Dont shoot in shield", &cvars::legitbot.aim_dont_shoot_in_shield);
 				components::checkbox("Demochecker bypass", &cvars::legitbot.aim_demochecker_bypass);
@@ -230,7 +233,15 @@ void CMenu::Draw()
 				components::checkbox("FOV scale by FPS", &cvars::legitbot.aim_fov_scale_by_fps);
 				components::checkbox("Smooth independence FPS", &cvars::legitbot.aim_smooth_independence_fps);
 			});
-			panel("Target Weights", ImVec2(a.x, 300.f), ImVec2(col3_w, -1.f), [&]()
+			panel("Humanizer", ImVec2(a.x, 285.f), ImVec2(col3_w, 215.f), [&]()
+			{
+				components::checkbox("Humanizer", &cvars::legitbot.humanizer);
+				components::slider_int("Reaction min", &cvars::legitbot.humanizer_reaction_min, 0, 1000, "%d", "ms");
+				components::slider_int("Reaction max", &cvars::legitbot.humanizer_reaction_max, 0, 1000, "%d", "ms");
+				components::slider_int("Jitter", &cvars::legitbot.humanizer_jitter, 0, 100, "%d", "");
+				components::slider_int("Curve", &cvars::legitbot.humanizer_curve, 1, 200, "%d", "");
+			});
+			panel("Target Weights", ImVec2(a.x + col3_w + 10.f, 255.f), ImVec2(col3_w, 245.f), [&]()
 			{
 				components::slider_int("Head weight", &cvars::legitbot.target_weight_head, 1, 100, "%d", "%");
 				components::slider_int("Neck weight", &cvars::legitbot.target_weight_neck, 1, 100, "%d", "%");
@@ -239,7 +250,7 @@ void CMenu::Draw()
 				components::slider_int("Arms weight", &cvars::legitbot.target_weight_arms, 1, 100, "%d", "%");
 				components::slider_int("Legs weight", &cvars::legitbot.target_weight_legs, 1, 100, "%d", "%");
 			});
-			panel("Targeting", ImVec2(a.x + col3_w + 10.f, 300.f), ImVec2(col3_w, -1.f), [&]()
+			panel("Targeting", ImVec2(a.x + (col3_w + 10.f) * 2.f, 350.f), ImVec2(col3_w, 125.f), [&]()
 			{
 				const char* sel[] = { "Closest FOV", "Hitbox weight" };
 				components::combo("Aim selection", &cvars::legitbot.target_aim_selection, sel, IM_ARRAYSIZE(sel));
@@ -249,7 +260,7 @@ void CMenu::Draw()
 		else if (section[AIMBOT] == 1)
 		{
 			float ya = a.y;
-			panel("Ragebot", ImVec2(a.x, ya), ImVec2(col3_w, 280.f), [&]()
+			panel("Ragebot", ImVec2(a.x, ya), ImVec2(col3_w, 205.f), [&]()
 			{
 				components::checkbox("Enabled", &cvars::ragebot.active, &cvars::ragebot.raim_key);
 				components::keybind("Aim key", &cvars::ragebot.raim_key);
@@ -257,7 +268,7 @@ void CMenu::Draw()
 				components::checkbox("Automatic fire", &cvars::ragebot.raim_auto_fire);
 				components::slider_float("Maximum FOV", &cvars::ragebot.raim_fov, 0.f, 180.f, "%.1f", "°");
 			});
-			panel("Accuracy", ImVec2(a.x + col3_w + 10.f, ya), ImVec2(col3_w, 280.f), [&]()
+			panel("Accuracy", ImVec2(a.x + col3_w + 10.f, ya), ImVec2(col3_w, 340.f), [&]()
 			{
 				const char* type[] = { "Legit AA correction", "Silent", "Teleport" };
 				components::combo("Aim type", &cvars::ragebot.raim_type, type, IM_ARRAYSIZE(type));
@@ -272,7 +283,7 @@ void CMenu::Draw()
 				components::combo("Remove spread", &cvars::ragebot.raim_remove_spread, spread, IM_ARRAYSIZE(spread));
 				components::checkbox("Auto scope", &cvars::ragebot.raim_auto_scope);
 			});
-			panel("Targeting", ImVec2(a.x + (col3_w + 10.f) * 2.f, ya), ImVec2(col3_w, 280.f), [&]()
+			panel("Targeting", ImVec2(a.x + (col3_w + 10.f) * 2.f, ya), ImVec2(col3_w, 420.f), [&]()
 			{
 				const char* tsel[] = { "Highest damage", "Closest by FOV", "Hitbox weights" };
 				components::multi_combo("Selection", cvars::ragebot.raim_target_selection, tsel, IM_ARRAYSIZE(tsel));
@@ -284,18 +295,22 @@ void CMenu::Draw()
 				components::slider_int("Stomach weight", &cvars::ragebot.raim_target_weight_stomach, 1, 100, "%d", "%");
 				components::slider_int("Arms weight", &cvars::ragebot.raim_target_weight_arms, 1, 100, "%d", "%");
 				components::slider_int("Legs weight", &cvars::ragebot.raim_target_weight_legs, 1, 100, "%d", "%");
+				components::checkbox("Safepoint", &cvars::ragebot.raim_safepoint);
+				components::checkbox("Auto force damage", &cvars::ragebot.raim_auto_force_damage);
+				components::slider_int("Force HP", &cvars::ragebot.raim_auto_force_damage_hp, 1, 100, "%d", "hp");
 			});
-			panel("Mitigations", ImVec2(a.x, 290.f), ImVec2(col3_w, -1.f), [&]()
+			panel("Mitigations", ImVec2(a.x, 215.f), ImVec2(col3_w, 140.f), [&]()
 			{
 				components::slider_float("Low FPS value", &cvars::ragebot.raim_low_fps_value, 5.f, 500.f, "%.0f", "fps");
 				const char* mit[] = { "Traces only if can attack", "Dont trace arms", "Dont trace legs" };
 				components::multi_combo("Mitigations", cvars::ragebot.raim_low_fps_mitigations, mit, IM_ARRAYSIZE(mit));
 			});
-			panel("Resolver", ImVec2(a.x + col3_w + 10.f, 290.f), ImVec2(col3_w, -1.f), [&]()
+			panel("Resolver", ImVec2(a.x + col3_w + 10.f, 350.f), ImVec2(col3_w, 165.f), [&]()
 			{
 				const char* pitch[] = { "Off", "Resolve untrusted" };
 				components::combo("Pitch", &cvars::ragebot.raim_resolver_pitch, pitch, IM_ARRAYSIZE(pitch));
-				components::text("GLOBAL");
+				components::checkbox("Auto bruteforce", &cvars::ragebot.raim_resolver_auto);
+				components::slider_int("Misses", &cvars::ragebot.raim_resolver_misses, 1, 10, "%d", "");
 			});
 		}
 		else if (section[AIMBOT] == 2)
@@ -391,7 +406,7 @@ void CMenu::Draw()
 						CopyProfile(wid, i);
 				}
 			});
-			panel("Legit Aim", ImVec2(a.x + col4_w + 10.f, ya), ImVec2(col4_w, 210.f), [&]()
+			panel("Legit Aim", ImVec2(a.x + col4_w + 10.f, ya), ImVec2(col4_w, 180.f), [&]()
 			{
 				components::checkbox("Aim enabled", &W.aim_enabled);
 				const char* hb[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs" };
@@ -399,7 +414,7 @@ void CMenu::Draw()
 				components::slider_float("Aim FOV", &W.aim_fov, 0.f, 30.f, "%.1f", "°");
 				components::slider_int("Accuracy boost", &W.aim_accuracy_boost, 0, 5, "%d", "");
 			});
-			panel("Recoil", ImVec2(a.x + (col4_w + 10.f) * 2.f, ya), ImVec2(col4_w, 210.f), [&]()
+			panel("Recoil", ImVec2(a.x + (col4_w + 10.f) * 2.f, ya), ImVec2(col4_w, 305.f), [&]()
 			{
 				components::slider_float("Smooth auto", &W.aim_smooth_auto, 0.f, 30.f, "%.1f", "");
 				components::slider_float("Smooth in attack", &W.aim_smooth_in_attack, 0.f, 30.f, "%.1f", "");
@@ -412,13 +427,13 @@ void CMenu::Draw()
 				components::slider_float("Recoil pitch", &W.aim_recoil_pitch, 0.f, 200.f, "%.0f", "%");
 				components::slider_float("Recoil yaw", &W.aim_recoil_yaw, 0.f, 200.f, "%.0f", "%");
 			});
-			panel("Timings", ImVec2(a.x, 220.f), ImVec2(col4_w, -1.f), [&]()
+			panel("Timings", ImVec2(a.x, 220.f), ImVec2(col4_w, 150.f), [&]()
 			{
 				components::slider_int("Lock-on", &W.aim_maximum_lock_on_time, 0, 10000, "%d", "ms");
 				components::slider_int("Delay aiming", &W.aim_delay_before_aiming, 0, 1000, "%d", "ms");
 				components::slider_int("Delay firing", &W.aim_delay_before_firing, 0, 1000, "%d", "ms");
 			});
-			panel("pSilent", ImVec2(a.x + col4_w + 10.f, 220.f), ImVec2(col4_w, -1.f), [&]()
+			panel("pSilent", ImVec2(a.x + col4_w + 10.f, 190.f), ImVec2(col4_w, 180.f), [&]()
 			{
 				const char* pst[] = { "Off", "In-air", "Silent shots" };
 				components::combo("Type", &W.aim_psilent_type, pst, IM_ARRAYSIZE(pst));
@@ -427,25 +442,7 @@ void CMenu::Draw()
 				const char* ptr[] = { "Standing", "On land", "In-air" };
 				components::multi_combo("Triggers", W.aim_psilent_triggers, ptr, IM_ARRAYSIZE(ptr));
 			});
-			panel("Penetration", ImVec2(a.x + (col4_w + 10.f) * 3.f, 0.f), ImVec2(col4_w, 120.f), [&]()
-			{
-				components::checkbox("Auto penetration", &W.aim_auto_penetration);
-				components::slider_int("Min damage", &W.aim_auto_penetration_min_damage, 1, 100, "%d", "hp");
-			});
-			panel("Automatic", ImVec2(a.x + (col4_w + 10.f) * 3.f, 130.f), ImVec2(col4_w, 120.f), [&]()
-			{
-				components::checkbox("Auto fire", &W.aim_auto_fire);
-				components::checkbox("Trigger enabled", &W.trigger_enabled);
-			});
-			panel("Trigger", ImVec2(a.x + (col4_w + 10.f) * 3.f, 260.f), ImVec2(col4_w, -1.f), [&]()
-			{
-				const char* thb[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs" };
-				components::multi_combo("Hitboxes", W.trigger_hitboxes, thb, IM_ARRAYSIZE(thb));
-				components::slider_int("Accuracy boost", &W.trigger_accuracy_boost, 0, 5, "%d", "");
-				components::checkbox("Auto penetration", &W.trigger_auto_penetration);
-				components::slider_int("Min damage", &W.trigger_auto_penetration_min_damage, 1, 100, "%d", "hp");
-			});
-			panel("Rage", ImVec2(a.x + (col4_w + 10.f) * 2.f, 220.f), ImVec2(col4_w, -1.f), [&]()
+			panel("Rage", ImVec2(a.x + (col4_w + 10.f) * 3.f, 0.f), ImVec2(col4_w, 275.f), [&]()
 			{
 				components::checkbox("Rage enabled", &W.raim_enabled);
 				const char* rhb[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs" };
@@ -456,6 +453,27 @@ void CMenu::Draw()
 				const char* ast[] = { "Off", "Auto", "Fast", "Early" };
 				components::combo("Autostop", &W.raim_autostop, ast, IM_ARRAYSIZE(ast));
 				components::checkbox("Autostop crouch", &W.raim_autostop_crouch);
+			});
+			panel("Trigger", ImVec2(a.x + (col4_w + 10.f) * 2.f, 315.f), ImVec2(col4_w, 180.f), [&]()
+			{
+				const char* thb[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs" };
+				components::multi_combo("Hitboxes", W.trigger_hitboxes, thb, IM_ARRAYSIZE(thb));
+				components::slider_int("Accuracy boost", &W.trigger_accuracy_boost, 0, 5, "%d", "");
+				components::checkbox("Auto penetration", &W.trigger_auto_penetration);
+				components::slider_int("Min damage", &W.trigger_auto_penetration_min_damage, 1, 100, "%d", "hp");
+			});
+			panel("Penetration", ImVec2(a.x + col4_w + 10.f, 380.f), ImVec2(col4_w, 120.f), [&]()
+			{
+				components::checkbox("Auto penetration", &W.aim_auto_penetration);
+				components::slider_int("Min damage", &W.aim_auto_penetration_min_damage, 1, 100, "%d", "hp");
+			});
+			panel("Automatic", ImVec2(a.x, 380.f), ImVec2(col4_w, 120.f), [&]()
+			{
+				components::checkbox("Auto fire", &W.aim_auto_fire);
+				components::checkbox("Trigger enabled", &W.trigger_enabled);
+			});
+			panel("Rage Scale", ImVec2(a.x + (col4_w + 10.f) * 3.f, 285.f), ImVec2(col4_w, 320.f), [&]()
+			{
 				components::slider_float("Head scale", &W.raim_head_scale, 0.f, 200.f, "%.0f", "%");
 				components::text(W.raim_head_scale > 0.5f ? "Head: ON" : "Head: OFF");
 				components::slider_float("Neck scale", &W.raim_neck_scale, 0.f, 200.f, "%.0f", "%");
@@ -489,9 +507,19 @@ void CMenu::Draw()
 			{
 				const char* roll[] = { "None", "Sideways 50", "Sideways 90", "Sideways 180", "Static" };
 				const char* side[] = { "Off", "Manual left", "Manual right" };
+				const char* fsmode[] = { "Always", "On key", "Key or no bind" };
 				components::combo("Side", &cvars::ragebot.aa_side, side, IM_ARRAYSIZE(side));
 				components::keybind("Side key", &cvars::ragebot.aa_side_key);
 				components::checkbox("Switch when take damage", &cvars::ragebot.aa_side_switch_when_take_damage);
+				components::checkbox("Freestanding", &cvars::ragebot.aa_freestanding);
+				components::combo("Freestanding mode", &cvars::ragebot.aa_freestanding_mode, fsmode, IM_ARRAYSIZE(fsmode));
+				components::keybind("Freestanding key", &cvars::ragebot.aa_freestanding_key);
+				components::slider_float("Freestanding dist", &cvars::ragebot.aa_freestanding_distance, 8.f, 256.f, "%.0f", "units");
+				components::checkbox("On shot", &cvars::ragebot.aa_on_shot);
+				components::slider_float("On shot time", &cvars::ragebot.aa_on_shot_time, 0.05f, 1.f, "%.2f", "s");
+				components::checkbox("Fake duck", &cvars::ragebot.fake_duck);
+				components::keybind("Fake duck key", &cvars::ragebot.fake_duck_key);
+				components::slider_int("Fake duck choke", &cvars::ragebot.fake_duck_choke, 1, 12, "%d", "ticks");
 				components::combo("Roll", &cvars::ragebot.aa_roll, roll, IM_ARRAYSIZE(roll));
 				components::slider_float("Static roll", &cvars::ragebot.aa_roll_static, -180.f, 180.f, "%.1f", "°");
 			});
@@ -602,7 +630,7 @@ void CMenu::Draw()
 				components::color_edit("Skeleton backtrack", cvars::visuals.esp_player_skeleton_backtrack_color);
 				components::color_edit("Hitboxes", cvars::visuals.esp_player_hitboxes_color);
 			});
-			panel("Glow", b, ImVec2(panel_w, 150.f), [&]()
+			panel("Glow", b, ImVec2(panel_w, 245.f), [&]()
 			{
 				const char* pl[] = { "Local", "Enemies", "Teammates" };
 				components::checkbox("Glow", &cvars::visuals.esp_player_glow);
@@ -612,7 +640,7 @@ void CMenu::Draw()
 				components::color_edit("Glow T", cvars::visuals.esp_player_glow_color_t);
 				components::color_edit("Glow CT", cvars::visuals.esp_player_glow_color_ct);
 			});
-			panel("Sounds", ImVec2(b.x, 160.f), ImVec2(panel_w, 150.f), [&]()
+			panel("Sounds", ImVec2(b.x, 255.f), ImVec2(panel_w, 245.f), [&]()
 			{
 				const char* pl[] = { "Local", "Enemies", "Teammates" };
 				components::checkbox("Sounds", &cvars::visuals.esp_player_sounds);
@@ -622,7 +650,7 @@ void CMenu::Draw()
 				components::color_edit("Sounds T", cvars::visuals.esp_player_sounds_color_t);
 				components::color_edit("Sounds CT", cvars::visuals.esp_player_sounds_color_ct);
 			});
-			panel("Out of FOV", ImVec2(b.x, 320.f), ImVec2(panel_w, -1.f), [&]()
+			panel("Out of FOV", ImVec2(b.x, 510.f), ImVec2(panel_w, 400.f), [&]()
 			{
 				const char* dt[] = { "Arrows", "Circles", "Rhombus" };
 				const char* pl[] = { "Enemies", "Teammates" };
@@ -670,7 +698,7 @@ void CMenu::Draw()
 				components::combo("Desync AA", &cvars::visuals.colored_models_players_desync_aa, rend, IM_ARRAYSIZE(rend));
 				components::color_edit("Desync AA", cvars::visuals.colored_models_players_desync_aa_color);
 			});
-			panel("Backtrack", ImVec2(a.x, 240.f), ImVec2(col3_w, -1.f), [&]()
+			panel("Backtrack", ImVec2(a.x, 240.f), ImVec2(col3_w, 305.f), [&]()
 			{
 				const char* rend[] = { "Off", "Flat", "Darkened", "Lighted", "Textured" };
 				const char* pl[] = { "Enemies", "Teammates" };
@@ -683,6 +711,12 @@ void CMenu::Draw()
 				components::color_edit("CT hide", cvars::visuals.colored_models_backtrack_color_ct_hide);
 				components::color_edit("CT visible", cvars::visuals.colored_models_backtrack_color_ct_vis);
 			});
+			panel("Backtrack Dots", ImVec2(a.x, 555.f), ImVec2(col3_w, 150.f), [&]()
+			{
+				components::checkbox("Backtrack dots", &cvars::visuals.backtrack_positions);
+				components::checkbox("Best tick ring", &cvars::visuals.backtrack_positions_best_tick);
+				components::color_edit("Dots", cvars::visuals.backtrack_positions_color);
+			});
 			panel("Hands", ImVec2(a.x + (col3_w + 10.f) * 2.f, 0.f), ImVec2(col3_w, 230.f), [&]()
 			{
 				const char* rend[] = { "Off", "Flat", "Darkened", "Lighted", "Textured" };
@@ -692,7 +726,7 @@ void CMenu::Draw()
 				components::checkbox("Rainbow", &cvars::visuals.colored_models_hands_color_rainbow);
 				components::slider_float("Rainbow speed", &cvars::visuals.colored_models_hands_color_rainbow_speed, 0.1f, 10.f, "%.1f", "");
 			});
-			panel("Lights", ImVec2(a.x + (col3_w + 10.f) * 2.f, 240.f), ImVec2(col3_w, -1.f), [&]()
+			panel("Lights", ImVec2(a.x + (col3_w + 10.f) * 2.f, 240.f), ImVec2(col3_w, 430.f), [&]()
 			{
 				const char* orig[] = { "Legs", "Body", "Head" };
 				const char* pl[] = { "Local", "Enemies", "Teammates" };
@@ -712,7 +746,7 @@ void CMenu::Draw()
 		}
 		else if (section[VISUALS] == 2)
 		{
-			panel("Local ESP", a, ImVec2(content_w, -1.f), [&]()
+			panel("Local ESP", a, ImVec2(col3_w, 305.f), [&]()
 			{
 				const char* wm[] = { "Time", "Name", "FPS", "Latency", "E4", "E5", "E6", "E7" };
 				components::checkbox("Toggle status", &cvars::visuals.esp_other_local_toggle_status);
@@ -724,10 +758,48 @@ void CMenu::Draw()
 				components::multi_combo("Watermark elements", cvars::visuals.watermark_elements, wm, IM_ARRAYSIZE(wm));
 				components::checkbox("Function status", &cvars::visuals.local_function_status);
 			});
+			panel("Indicators", ImVec2(a.x, 315.f), ImVec2(col3_w, 180.f), [&]()
+			{
+				const char* indpos[] = { "Bottom", "Top", "Left", "Right" };
+				const char* indelem[] = { "Choke", "Doubletap", "Fakelag", "Speed", "Antiaim" };
+				components::checkbox("Indicators", &cvars::visuals.indicators);
+				components::combo("Position", &cvars::visuals.indicators_pos, indpos, IM_ARRAYSIZE(indpos));
+				components::multi_combo("Elements", cvars::visuals.indicators_elements, indelem, IM_ARRAYSIZE(indelem));
+				components::color_edit("Indicators", cvars::visuals.indicators_color);
+			});
+			panel("Hit Feedback", ImVec2(a.x + col3_w + 10.f, 0.f), ImVec2(col3_w, 340.f), [&]()
+			{
+				const char* hsnd[] = { "Blip 1", "Blip 2", "Bullet hit", "Pain" };
+				components::checkbox("Hitsound", &cvars::visuals.hitsound);
+				components::combo("Sound", &cvars::visuals.hitsound_type, hsnd, IM_ARRAYSIZE(hsnd));
+				components::slider_float("Volume", &cvars::visuals.hitsound_volume, 0.f, 1.f, "%.2f", "");
+				components::slider_int("HS pitch", &cvars::visuals.hitsound_headshot_pitch, 50, 200, "%d", "");
+				components::checkbox("Hitmarker", &cvars::visuals.hitmarker);
+				components::slider_float("Hitmarker time", &cvars::visuals.hitmarker_time, 0.1f, 2.f, "%.1f", "s");
+				components::slider_float("Hitmarker size", &cvars::visuals.hitmarker_size, 2.f, 24.f, "%.0f", "px");
+				components::color_edit("Hitmarker", cvars::visuals.hitmarker_color);
+				components::color_edit("Hitmarker HS", cvars::visuals.hitmarker_headshot_color);
+			});
+			panel("Damage Log", ImVec2(a.x + (col3_w + 10.f) * 2.f, 0.f), ImVec2(col3_w, 215.f), [&]()
+			{
+				const char* logpos[] = { "Top left", "Top right", "Bottom left", "Bottom right" };
+				components::checkbox("Damage log", &cvars::visuals.damage_log);
+				components::combo("Position", &cvars::visuals.damage_log_pos, logpos, IM_ARRAYSIZE(logpos));
+				components::slider_float("Time", &cvars::visuals.damage_log_time, 0.5f, 10.f, "%.1f", "s");
+				components::color_edit("Damage log", cvars::visuals.damage_log_color);
+				components::color_edit("Damage log HS", cvars::visuals.damage_log_headshot_color);
+			});
+			panel("Spectators", ImVec2(a.x + (col3_w + 10.f) * 2.f, 225.f), ImVec2(col3_w, 150.f), [&]()
+			{
+				const char* specpos[] = { "Right", "Left" };
+				components::checkbox("Spectator list", &cvars::visuals.spectator_list);
+				components::combo("Position", &cvars::visuals.spectator_list_pos, specpos, IM_ARRAYSIZE(specpos));
+				components::color_edit("Spectators", cvars::visuals.spectator_list_color);
+			});
 		}
 		else
 		{
-			panel("World", a, ImVec2(content_w, -1.f), [&]()
+			panel("World", a, ImVec2(panel_w, -1.f), [&]()
 			{
 				components::checkbox("Remove smoke", &cvars::visuals.remove_smoke);
 				components::checkbox("Remove scope", &cvars::visuals.remove_scope);
@@ -742,7 +814,13 @@ void CMenu::Draw()
 				if (components::slider_float("Copyright Y", &cvars::visuals.copyright_position[1], 0.f, 1080.f, "%.0f", "px"))
 					cvars::visuals.copyright_position[2] = 0.f;
 				components::keybind("Panic key", &cvars::visuals.panic_key);
-components::checkbox("Allow resize", &cvars::visuals.main_allow_resize);
+				components::checkbox("Allow resize", &cvars::visuals.main_allow_resize);
+			});
+			panel("Grenades", b, ImVec2(panel_w, -1.f), [&]()
+			{
+				components::checkbox("Grenade preview", &cvars::visuals.grenade_preview);
+				components::checkbox("Detonation timer", &cvars::visuals.grenade_preview_timer);
+				components::color_edit("Trajectory", cvars::visuals.grenade_preview_color);
 			});
 		}
 	}
@@ -785,13 +863,19 @@ components::slider_float("DeGen tilt", &cvars::kreedz.degen_tilt, -0.9f, 0.9f, "
 		}
 		else
 		{
-			panel("Movement Exploits", a, ImVec2(content_w, -1.f), [&]()
+			panel("Movement Exploits", a, ImVec2(panel_w, -1.f), [&]()
 			{
 				components::checkbox("Jump bug", &cvars::kreedz.jumpbug);
 				components::checkbox("Edge bug", &cvars::kreedz.edgebug);
 				components::checkbox("Wall bug", &cvars::kreedz.wallbug);
 				components::checkbox("Auto jump of fall", &cvars::kreedz.auto_jof);
 				components::slider_float("JOF distance", &cvars::kreedz.auto_jof_min_distance, 1.f, 16.f, "%.1f", "units");
+			});
+			panel("Edge Jump", b, ImVec2(panel_w, -1.f), [&]()
+			{
+				components::checkbox("Edge jump", &cvars::kreedz.edgejump, &cvars::kreedz.edgejump_key);
+				components::keybind("Edge jump key", &cvars::kreedz.edgejump_key);
+				components::slider_float("Edge distance", &cvars::kreedz.edgejump_distance, 1.f, 64.f, "%.1f", "units");
 			});
 		}
 	}
@@ -866,7 +950,7 @@ components::checkbox("Developer", &cvars::misc.fps_developer);
 		}
 		else if (section[MISC] == 3)
 		{
-			panel("Other Features", a, ImVec2(content_w, -1.f), [&]()
+			panel("Other Features", a, ImVec2(panel_w, -1.f), [&]()
 			{
 				components::checkbox("Auto block", &cvars::misc.auto_block, &cvars::misc.auto_block_key);
 				components::keybind("Auto block key", &cvars::misc.auto_block_key);
@@ -878,6 +962,12 @@ components::keybind("Auto boost key", &cvars::misc.auto_boost_key);
 				components::checkbox("Game speed", &cvars::misc.speed_enabled, &cvars::misc.speed_key);
 				components::keybind("Speed key", &cvars::misc.speed_key);
 				components::slider_float("Speed value", &cvars::misc.speed_value, 0.1f, 5.f, "%.1f", "x");
+			});
+			panel("Kill Say", b, ImVec2(panel_w, -1.f), [&]()
+			{
+				components::checkbox("Kill say", &cvars::misc.kill_say);
+				components::checkbox("Headshot only", &cvars::misc.kill_say_headshot_only);
+				components::input_text("Text (%s = nick)", cvars::misc.kill_say_text, sizeof(cvars::misc.kill_say_text));
 			});
 		}
 		else

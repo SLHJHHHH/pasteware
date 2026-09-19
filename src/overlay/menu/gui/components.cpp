@@ -43,7 +43,7 @@ namespace components
             CHECK_KEY(VK_XBUTTON2, K_MOUSE5);
         }
 
-        // Function keys
+
         CHECK_KEY(VK_F1, K_F1);
         CHECK_KEY(VK_F2, K_F2);
         CHECK_KEY(VK_F3, K_F3);
@@ -57,7 +57,7 @@ namespace components
         CHECK_KEY(VK_F11, K_F11);
         CHECK_KEY(VK_F12, K_F12);
 
-        // Control keys
+
         CHECK_KEY(VK_SPACE, K_SPACE);
         CHECK_KEY(VK_RETURN, K_ENTER);
         CHECK_KEY(VK_TAB, K_TAB);
@@ -76,14 +76,14 @@ namespace components
         CHECK_KEY(VK_DELETE, K_DEL);
         CHECK_KEY(VK_CAPITAL, K_CAPSLOCK);
 
-        // Numbers 0-9
+
         for (int k = 0x30; k <= 0x39; ++k)
         {
             if (GetAsyncKeyState(k) & 0x8000)
                 return K_0 + (k - 0x30);
         }
 
-        // Letters A-Z
+
         for (int k = 0x41; k <= 0x5A; ++k)
         {
             if (GetAsyncKeyState(k) & 0x8000)
@@ -163,7 +163,7 @@ namespace components
             ImGui::MarkItemEdited(id);
         }
 
-        // Animation interpolation
+
         float& anim = g_AnimMap[id];
         const float target_anim = *value ? 1.0f : 0.0f;
         const float dt = ImClamp(g.IO.DeltaTime * 16.0f, 0.0f, 1.0f);
@@ -172,20 +172,20 @@ namespace components
         const float box_y_off = (row_h - square_sz) * 0.5f;
         const ImRect check_bb(pos + ImVec2(0, box_y_off), pos + ImVec2(square_sz, box_y_off + square_sz));
 
-        // Background color lerp: dark when off, accent when on
+
         const ImVec4 col_off(0.13f, 0.13f, 0.15f, 1.0f);
         const ImVec4 col_on = g_AccentColor;
         const ImVec4 current_bg = ImLerp(col_off, col_on, anim);
 
-        const ImVec4 border_col = hovered 
-            ? ImVec4(0.38f, 0.38f, 0.42f, 1.0f) 
+        const ImVec4 border_col = hovered
+            ? ImVec4(0.38f, 0.38f, 0.42f, 1.0f)
             : ImVec4(0.20f, 0.20f, 0.23f, 1.0f);
 
-        // Draw checkbox box
+
         window->DrawList->AddRectFilled(check_bb.Min, check_bb.Max, ImColor(current_bg), 3.0f);
         window->DrawList->AddRect(check_bb.Min, check_bb.Max, ImColor(border_col), 3.0f);
 
-        // Draw animated checkmark
+
         if (anim > 0.01f)
         {
             const float pad = 3.0f;
@@ -199,13 +199,13 @@ namespace components
             window->DrawList->PathStroke(ImColor(1.0f, 1.0f, 1.0f, anim), false, 1.8f);
         }
 
-        // Draw Label Text
-        const ImU32 text_col = hovered 
-            ? ImColor(255, 255, 255) 
+
+        const ImU32 text_col = hovered
+            ? ImColor(255, 255, 255)
             : (*value ? ImColor(230, 230, 235) : ImColor(165, 165, 175));
         window->DrawList->AddText(pos + ImVec2(square_sz + 8.f, (row_h - label_size.y) * 0.5f), text_col, label);
 
-        // Keybind Button on right side if bind is attached
+
         if (bind)
         {
             const ImGuiID bind_id = window->GetID((std::string(label) + "_bind").c_str());
@@ -226,7 +226,7 @@ namespace components
                 }
             }
 
-            // Right click opens mode menu
+
             std::string popup_id = std::string("##popup_bind_") + label;
             if (bind_hovered && ImGui::IsMouseClicked(1))
             {
@@ -254,19 +254,19 @@ namespace components
                 }
             }
 
-            // Draw keybind button
+
             char bind_buf[48];
             if (is_waiting)
                 sprintf_s(bind_buf, "[ ... ]");
             else
                 sprintf_s(bind_buf, "[ %s ]", key_to_string(bind->keynum));
 
-            const ImVec4 btn_bg = is_waiting 
+            const ImVec4 btn_bg = is_waiting
                 ? ImVec4(g_AccentColor.x, g_AccentColor.y, g_AccentColor.z, 0.35f)
                 : (bind_hovered ? ImVec4(0.20f, 0.20f, 0.23f, 1.0f) : ImVec4(0.13f, 0.13f, 0.15f, 1.0f));
-            
-            const ImU32 btn_text_col = (bind->keynum > 0 || is_waiting) 
-                ? ImColor(g_AccentColor) 
+
+            const ImU32 btn_text_col = (bind->keynum > 0 || is_waiting)
+                ? ImColor(g_AccentColor)
                 : (bind_hovered ? ImColor(220, 220, 225) : ImColor(130, 130, 140));
 
             window->DrawList->AddRectFilled(bind_bb.Min, bind_bb.Max, ImColor(btn_bg), 3.0f);
@@ -276,7 +276,7 @@ namespace components
             const ImVec2 txt_pos(bind_bb.Min.x + (bind_btn_w - txt_sz.x) * 0.5f, bind_bb.Min.y + (bind_h - txt_sz.y) * 0.5f);
             window->DrawList->AddText(txt_pos, btn_text_col, bind_buf);
 
-            // Bind Options Popup (Hold / Toggle / Clear)
+
             if (ImGui::BeginPopup(popup_id.c_str()))
             {
                 ImGui::TextDisabled("Activation Mode");
@@ -319,10 +319,7 @@ namespace components
         const float total_width = ImGui::GetContentRegionAvailWidth();
         const ImVec2 pos = window->DC.CursorPos;
 
-        // Draw Label
-        ImGui::TextUnformatted(label);
 
-        // Draw Value string on right (clickable for manual text editing)
         char val_buf[64];
         if (suffix && suffix[0] != '\0')
             sprintf_s(val_buf, "%d %s", *value, suffix);
@@ -330,8 +327,8 @@ namespace components
             sprintf_s(val_buf, format, *value);
 
         const ImVec2 val_size = ImGui::CalcTextSize(val_buf);
-        const float val_click_w = ImMax(val_size.x + 8.0f, 44.0f);
-        const ImRect val_bb(pos + ImVec2(total_width - val_click_w, 0.0f), pos + ImVec2(total_width, ImGui::GetTextLineHeight() + 2.0f));
+        const float line_h = ImGui::GetTextLineHeight();
+        const ImRect val_bb(ImVec2(pos.x + total_width - val_size.x - 5.0f, pos.y), ImVec2(pos.x + total_width, pos.y + line_h + 2.0f));
 
         const bool is_editing = (g_ActiveSliderInputId == id);
         if (!is_editing)
@@ -344,15 +341,17 @@ namespace components
                 g_TypedSliderInt = *value;
             }
 
-            ImGui::SameLine(total_width - val_size.x);
-            ImGui::PushStyleColor(ImGuiCol_Text, val_hovered ? ImVec4(1.0f, 1.0f, 1.0f, 1.0f) : ImVec4(0.70f, 0.70f, 0.75f, 1.0f));
-            ImGui::TextUnformatted(val_buf);
-            ImGui::PopStyleColor();
+
+            window->DrawList->AddText(pos, ImColor(200, 200, 208), label);
+            window->DrawList->AddText(ImVec2(pos.x + total_width - val_size.x - 1.0f, pos.y),
+                val_hovered ? ImColor(255, 255, 255) : ImColor(178, 178, 190), val_buf);
+            ImGui::Dummy(ImVec2(total_width, line_h + 2.0f));
         }
         else
         {
-            ImGui::SameLine(total_width - 55.0f);
-            ImGui::PushItemWidth(55.0f);
+
+            ImGui::TextUnformatted(label);
+            ImGui::PushItemWidth(ImMin(total_width, 120.0f));
             std::string input_id = std::string("##val_input_") + label;
             if (g_SliderInputJustOpened)
             {
@@ -374,13 +373,16 @@ namespace components
             ImGui::PopItemWidth();
         }
 
-        // Custom slim slider bar
-        const float track_h = 4.0f;
-        const float pad_y = 6.0f;
-        const ImRect track_bb(pos + ImVec2(0, ImGui::GetTextLineHeight() + pad_y), pos + ImVec2(total_width, ImGui::GetTextLineHeight() + pad_y + track_h));
-        const ImRect click_bb(track_bb.Min - ImVec2(0, 4.0f), track_bb.Max + ImVec2(0, 4.0f));
+        const ImVec2 track_pos = window->DC.CursorPos;
 
-        ImGui::ItemSize(ImRect(pos, pos + ImVec2(total_width, ImGui::GetTextLineHeight() + track_h + pad_y + 4.0f)), style.FramePadding.y);
+        const float track_h = 4.0f;
+        const float pad_y = 5.0f;
+        const float grab_pad = 5.0f;
+        const float track_w = ImMax(total_width - grab_pad * 2.0f, 10.0f);
+        const ImRect track_bb(track_pos + ImVec2(grab_pad, pad_y), track_pos + ImVec2(grab_pad + track_w, pad_y + track_h));
+        const ImRect click_bb(ImVec2(track_pos.x, track_bb.Min.y - 4.0f), ImVec2(track_pos.x + total_width, track_bb.Max.y + 4.0f));
+
+        ImGui::ItemSize(ImRect(track_pos, track_pos + ImVec2(total_width, track_h + pad_y + 8.0f)), style.FramePadding.y);
         if (!ImGui::ItemAdd(click_bb, id))
             return false;
 
@@ -398,25 +400,24 @@ namespace components
             }
         }
 
-        // Calculate grab ratio
+
         const float ratio = ImClamp(static_cast<float>(*value - min_val) / static_cast<float>(max_val - min_val), 0.0f, 1.0f);
         const float grab_x = track_bb.Min.x + ratio * track_bb.GetWidth();
 
-        // Track background
+
         window->DrawList->AddRectFilled(track_bb.Min, track_bb.Max, ImColor(30, 30, 36), track_h * 0.5f);
-        
-        // Filled portion
+
+
         if (ratio > 0.0f)
         {
             window->DrawList->AddRectFilled(track_bb.Min, ImVec2(grab_x, track_bb.Max.y), ImColor(g_AccentColor), track_h * 0.5f);
         }
 
-        // Grabber circle
-        const float grab_radius = (hovered || held) ? 5.5f : 4.5f;
-        window->DrawList->AddCircleFilled(ImVec2(grab_x, track_bb.Min.y + track_h * 0.5f), grab_radius, ImColor(255, 255, 255));
-        window->DrawList->AddCircle(ImVec2(grab_x, track_bb.Min.y + track_h * 0.5f), grab_radius, ImColor(g_AccentColor), 12, 1.2f);
 
-        ImGui::Spacing();
+        const float grab_radius = (hovered || held) ? 5.0f : 4.0f;
+        window->DrawList->AddCircleFilled(ImVec2(grab_x, track_bb.Min.y + track_h * 0.5f), grab_radius, ImColor(255, 255, 255));
+        window->DrawList->AddCircle(ImVec2(grab_x, track_bb.Min.y + track_h * 0.5f), grab_radius, ImColor(g_AccentColor), 16, 1.2f);
+
         return held;
     }
 
@@ -433,10 +434,7 @@ namespace components
         const float total_width = ImGui::GetContentRegionAvailWidth();
         const ImVec2 pos = window->DC.CursorPos;
 
-        // Draw Label
-        ImGui::TextUnformatted(label);
 
-        // Draw Value string on right (clickable for manual text editing)
         char val_buf[64];
         if (suffix && suffix[0] != '\0')
             sprintf_s(val_buf, "%.1f %s", *value, suffix);
@@ -444,8 +442,8 @@ namespace components
             sprintf_s(val_buf, format, *value);
 
         const ImVec2 val_size = ImGui::CalcTextSize(val_buf);
-        const float val_click_w = ImMax(val_size.x + 8.0f, 44.0f);
-        const ImRect val_bb(pos + ImVec2(total_width - val_click_w, 0.0f), pos + ImVec2(total_width, ImGui::GetTextLineHeight() + 2.0f));
+        const float line_h = ImGui::GetTextLineHeight();
+        const ImRect val_bb(ImVec2(pos.x + total_width - val_size.x - 5.0f, pos.y), ImVec2(pos.x + total_width, pos.y + line_h + 2.0f));
 
         const bool is_editing = (g_ActiveSliderInputId == id);
         if (!is_editing)
@@ -458,15 +456,17 @@ namespace components
                 g_TypedSliderFloat = *value;
             }
 
-            ImGui::SameLine(total_width - val_size.x);
-            ImGui::PushStyleColor(ImGuiCol_Text, val_hovered ? ImVec4(1.0f, 1.0f, 1.0f, 1.0f) : ImVec4(0.70f, 0.70f, 0.75f, 1.0f));
-            ImGui::TextUnformatted(val_buf);
-            ImGui::PopStyleColor();
+
+            window->DrawList->AddText(pos, ImColor(200, 200, 208), label);
+            window->DrawList->AddText(ImVec2(pos.x + total_width - val_size.x - 1.0f, pos.y),
+                val_hovered ? ImColor(255, 255, 255) : ImColor(178, 178, 190), val_buf);
+            ImGui::Dummy(ImVec2(total_width, line_h + 2.0f));
         }
         else
         {
-            ImGui::SameLine(total_width - 55.0f);
-            ImGui::PushItemWidth(55.0f);
+
+            ImGui::TextUnformatted(label);
+            ImGui::PushItemWidth(ImMin(total_width, 120.0f));
             std::string input_id = std::string("##val_f_input_") + label;
             if (g_SliderInputJustOpened)
             {
@@ -488,13 +488,16 @@ namespace components
             ImGui::PopItemWidth();
         }
 
-        // Custom slim slider bar
-        const float track_h = 4.0f;
-        const float pad_y = 6.0f;
-        const ImRect track_bb(pos + ImVec2(0, ImGui::GetTextLineHeight() + pad_y), pos + ImVec2(total_width, ImGui::GetTextLineHeight() + pad_y + track_h));
-        const ImRect click_bb(track_bb.Min - ImVec2(0, 4.0f), track_bb.Max + ImVec2(0, 4.0f));
 
-        ImGui::ItemSize(ImRect(pos, pos + ImVec2(total_width, ImGui::GetTextLineHeight() + track_h + pad_y + 4.0f)), style.FramePadding.y);
+        const float track_h = 4.0f;
+        const ImVec2 track_pos_f = window->DC.CursorPos;
+        const float pad_y = 5.0f;
+        const float grab_pad_f = 5.0f;
+        const float track_w_f = ImMax(total_width - grab_pad_f * 2.0f, 10.0f);
+        const ImRect track_bb(track_pos_f + ImVec2(grab_pad_f, pad_y), track_pos_f + ImVec2(grab_pad_f + track_w_f, pad_y + track_h));
+        const ImRect click_bb(ImVec2(track_pos_f.x, track_bb.Min.y - 4.0f), ImVec2(track_pos_f.x + total_width, track_bb.Max.y + 4.0f));
+
+        ImGui::ItemSize(ImRect(track_pos_f, track_pos_f + ImVec2(total_width, track_h + pad_y + 8.0f)), style.FramePadding.y);
         if (!ImGui::ItemAdd(click_bb, id))
             return false;
 
@@ -512,25 +515,24 @@ namespace components
             }
         }
 
-        // Calculate grab ratio
+
         const float ratio = ImClamp((*value - min_val) / (max_val - min_val), 0.0f, 1.0f);
         const float grab_x = track_bb.Min.x + ratio * track_bb.GetWidth();
 
-        // Track background
+
         window->DrawList->AddRectFilled(track_bb.Min, track_bb.Max, ImColor(30, 30, 36), track_h * 0.5f);
-        
-        // Filled portion
+
+
         if (ratio > 0.0f)
         {
             window->DrawList->AddRectFilled(track_bb.Min, ImVec2(grab_x, track_bb.Max.y), ImColor(g_AccentColor), track_h * 0.5f);
         }
 
-        // Grabber circle
-        const float grab_radius = (hovered || held) ? 5.5f : 4.5f;
-        window->DrawList->AddCircleFilled(ImVec2(grab_x, track_bb.Min.y + track_h * 0.5f), grab_radius, ImColor(255, 255, 255));
-        window->DrawList->AddCircle(ImVec2(grab_x, track_bb.Min.y + track_h * 0.5f), grab_radius, ImColor(g_AccentColor), 12, 1.2f);
 
-        ImGui::Spacing();
+        const float grab_radius = (hovered || held) ? 5.0f : 4.0f;
+        window->DrawList->AddCircleFilled(ImVec2(grab_x, track_bb.Min.y + track_h * 0.5f), grab_radius, ImColor(255, 255, 255));
+        window->DrawList->AddCircle(ImVec2(grab_x, track_bb.Min.y + track_h * 0.5f), grab_radius, ImColor(g_AccentColor), 16, 1.2f);
+
         return held;
     }
 
@@ -541,14 +543,14 @@ namespace components
         std::string id = std::string("##combo_") + label;
         bool changed = ImGui::Combo(id.c_str(), current_item, items, items_count);
         ImGui::PopItemWidth();
-        ImGui::Spacing();
+        ImGui::Dummy(ImVec2(1.0f, 4.0f));
         return changed;
     }
 
     bool multi_combo(const char* label, bool* values, const char* const items[], int items_count)
     {
         ImGui::TextUnformatted(label);
-        
+
         std::string preview = "";
         int selected_count = 0;
         for (int i = 0; i < items_count; ++i)
@@ -580,7 +582,7 @@ namespace components
             ImGui::EndCombo();
         }
         ImGui::PopItemWidth();
-        ImGui::Spacing();
+        ImGui::Dummy(ImVec2(1.0f, 4.0f));
         return changed;
     }
 
@@ -593,8 +595,12 @@ namespace components
         const ImGuiID id = window->GetID(label);
         const float total_width = ImGui::GetContentRegionAvailWidth();
         const float btn_w = 80.0f;
+        const ImVec2 pos = window->DC.CursorPos;
+        const float line_h = ImGui::GetTextLineHeight();
+        const float row_h = ImMax(line_h + 2.0f, 24.0f);
 
-        ImGui::TextUnformatted(label);
+
+        window->DrawList->AddText(pos + ImVec2(0.0f, (row_h - line_h) * 0.5f), ImColor(200, 200, 208), label);
 
         const bool is_waiting = (g_WaitingKeyId == id);
         if (is_waiting)
@@ -623,18 +629,28 @@ namespace components
         else
             sprintf_s(btn_buf, "[ %s ]", key_to_string(bind->keynum));
 
-        ImGui::SameLine(total_width - btn_w);
-        const ImVec4 btn_col = is_waiting 
-            ? ImVec4(g_AccentColor.x, g_AccentColor.y, g_AccentColor.z, 0.4f) 
+
+
+
+        const float row_x0 = window->DC.CursorPos.x - window->Pos.x + window->Scroll.x;
+        const float row_y0 = window->DC.CursorPos.y - window->Pos.y + window->Scroll.y;
+        ImGui::SetCursorPos(ImVec2(row_x0 + total_width - btn_w,
+            row_y0 + (row_h - 24.0f) * 0.5f));
+        const ImVec4 btn_col = is_waiting
+            ? ImVec4(g_AccentColor.x, g_AccentColor.y, g_AccentColor.z, 0.4f)
             : ((bind->keynum > 0) ? ImVec4(0.18f, 0.18f, 0.22f, 1.0f) : ImVec4(0.13f, 0.13f, 0.15f, 1.0f));
 
         ImGui::PushStyleColor(ImGuiCol_Button, btn_col);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.22f, 0.26f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.26f, 0.26f, 0.30f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_Text, (bind->keynum > 0 || is_waiting) ? g_AccentColor : ImVec4(0.65f, 0.65f, 0.70f, 1.0f));
-        
+
         bool pressed = ImGui::Button(btn_buf, ImVec2(btn_w, 24.0f));
         ImGui::PopStyleColor(4);
+
+
+
+        ImGui::Dummy(ImVec2(1.0f, row_h - 24.0f + 4.0f));
 
         if (pressed)
         {
@@ -649,7 +665,7 @@ namespace components
             }
         }
 
-        // Right-click opens popup for Hold / Toggle / Clear
+
         std::string popup_id = std::string("##popup_mode_") + label;
         if (ImGui::IsItemClicked(1))
         {
@@ -670,7 +686,6 @@ namespace components
             ImGui::EndPopup();
         }
 
-        ImGui::Spacing();
         return pressed;
     }
 
@@ -735,7 +750,7 @@ namespace components
             ImGui::EndPopup();
         }
 
-        ImGui::Spacing();
+        ImGui::Dummy(ImVec2(1.0f, 4.0f));
         return changed;
     }
 
@@ -747,6 +762,26 @@ namespace components
         bool pressed = ImGui::Button(label, size);
         ImGui::PopStyleColor(3);
         return pressed;
+    }
+
+    void input_text(const char* label, char* buf, size_t buf_size)
+    {
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if (window->SkipItems)
+            return;
+
+        const float total_width = ImGui::GetContentRegionAvailWidth();
+        const ImVec2 pos = window->DC.CursorPos;
+        const float line_h = ImGui::GetTextLineHeight();
+
+        window->DrawList->AddText(pos, ImColor(200, 200, 208), label);
+        ImGui::Dummy(ImVec2(total_width, line_h + 2.0f));
+
+        ImGui::PushItemWidth(total_width);
+        std::string input_id = std::string("##text_") + label;
+        ImGui::InputText(input_id.c_str(), buf, buf_size);
+        ImGui::PopItemWidth();
+        ImGui::Dummy(ImVec2(1.0f, 4.0f));
     }
 
     void text(const char* fmt, ...)

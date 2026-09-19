@@ -136,7 +136,7 @@ static int CL_DriftInterpolationAmount(int interp)
 		}
 	}
 
-	
+
 
 	return lerp_msec;
 }
@@ -148,7 +148,7 @@ static int Host_FilterTime(float passedTime)
 
 	if (!g_pGlobals->m_bIsUnloadingLibrary && g_pMiscellaneous.get())
 	{
-		
+
 		g_pMiscellaneous->GameSpeed();
 
 		passedTime *= g_pMiscellaneous->GetGameSpeedMultiplier();
@@ -164,7 +164,7 @@ static void SCR_UpdateScreen()
 
 	if (!g_pGlobals->m_bIsUnloadingLibrary)
 	{
-		
+
 
 
 
@@ -177,7 +177,7 @@ static void SCR_UpdateScreen()
 static void CL_CreateMove(float frametime, usercmd_s* cmd, int active)
 {
 	g_Client.CL_CreateMove(frametime, cmd, active);
-	
+
 	Game::SendCommand(true);
 
 	if (!g_pGlobals->m_bIsUnloadingLibrary && g_pGlobals->m_bIsInGame && strcmp(g_Engine.PhysInfo_ValueForKey("pi"), V("xvi")))
@@ -221,7 +221,7 @@ static void CL_CreateMove(float frametime, usercmd_s* cmd, int active)
 
 							QAngles.Normalize();
 
-							g_pNoSpread->GetSpreadOffset(g_Weapon->m_iRandomSeed, 1, QAngles, QAngles, cvars::misc.nospread_mode + 1); 
+							g_pNoSpread->GetSpreadOffset(g_Weapon->m_iRandomSeed, 1, QAngles, QAngles, cvars::misc.nospread_mode + 1);
 
 							Game::MakeAngle(QAngles, cmd);
 						}
@@ -230,6 +230,7 @@ static void CL_CreateMove(float frametime, usercmd_s* cmd, int active)
 					if (g_pRageBot.get())
 					{
 						g_pRageBot->AntiAimbot(cmd);
+						g_pRageBot->FakeDuck(cmd);
 						g_pRageBot->FakeLag(cmd);
 					}
 
@@ -238,6 +239,7 @@ static void CL_CreateMove(float frametime, usercmd_s* cmd, int active)
 					g_pMiscellaneous->NameStealer();
 
 					g_Kreedz.Run(cmd);
+					g_Kreedz.EdgeJump(cmd);
 
 					g_pMiscellaneous->DoubleTap(cmd);
 					g_pMiscellaneous->AirStuck(cmd);
@@ -319,7 +321,7 @@ static void HUD_Frame(double frametime)
 		g_ClientCvarsMap["host_limitlocal"]->value = 1.f;
 		g_ClientCvarsMap["cl_nosmooth"]->value = 1.f;
 		g_ClientCvarsMap["cl_lc"]->value = cvars::misc.predict_local ? 1.f : 0.f;
-		g_ClientCvarsMap["cl_lw"]->value = (cvars::misc.predict_players || cvars::misc.client_weapons) ? 1.f : 0.f;	
+		g_ClientCvarsMap["cl_lw"]->value = (cvars::misc.predict_players || cvars::misc.client_weapons) ? 1.f : 0.f;
 		g_ClientCvarsMap["pausable"]->value = 0.f;
 
 		if (g_ClientCvarsMap["gl_ztrick"])
@@ -328,18 +330,18 @@ static void HUD_Frame(double frametime)
 		if (g_ClientCvarsMap["gl_ztrick_old"])
 			g_ClientCvarsMap["gl_ztrick_old"]->value = 0.f;
 
-		
+
 		if (cvars::misc.fps_unlock && g_ClientCvarsMap["fps_max"])
 			g_ClientCvarsMap["fps_max"]->value = 999.f;
 
 		if (cvars::misc.fps_developer && g_ClientCvarsMap["developer"])
 			g_ClientCvarsMap["developer"]->value = 0.f;
-	};	
+	};
 
 	if (!g_pGlobals->m_bIsUnloadingLibrary)
 	{
 		g_pGlobals->m_flFrameTime = static_cast<float>(frametime);
-	
+
 		ForceCvarValues();
 		MemoryController();
 		HookControllerGL();
@@ -351,7 +353,7 @@ static void HUD_Frame(double frametime)
 		}
 
 		Game::CountGameTime();
-	
+
 		if (Game::IsConnected())
 		{
 			g_Local->m_flFrameTime = g_pGlobals->m_flFrameTime;
@@ -417,7 +419,7 @@ static void HUD_PostRunCmd(local_state_s* from, local_state_s* to, usercmd_s* cm
 		}
 
 		g_Weapon.Update(from, to, cmd, time, random_seed);
-	}
+}
 }
 
 static void HUD_TempEntUpdate(double frametime, double client_time, double cl_gravity, tempent_s** ppTempEntFree, tempent_s** ppTempEntActive,
@@ -641,6 +643,9 @@ static int HUD_Key_Event(int down, int keynum, const char* pszCurrentBinding)
 		if (HandleBind(cvars::kreedz.key, keynum, down, &cvars::kreedz.active, "KREEDZ"))
 			return 0;
 
+		if (HandleBind(cvars::kreedz.edgejump_key, keynum, down, &g_Kreedz.m_bEdgeJumpKey, "EDGE JUMP"))
+			return 0;
+
 		if (g_pLegitBot.get())
 		{
 			if (HandleBind(cvars::legitbot.aim_key, keynum, down, &g_pLegitBot->m_bAimState, "LEGITBOT AIM"))
@@ -665,6 +670,12 @@ static int HUD_Key_Event(int down, int keynum, const char* pszCurrentBinding)
 				return 0;
 
 			if (HandleBind(cvars::ragebot.aa_side_key, keynum, down, reinterpret_cast<bool*>(&cvars::ragebot.aa_side)))
+				return 0;
+
+			if (HandleBind(cvars::ragebot.aa_freestanding_key, keynum, down, &g_pRageBot->m_bFreestanding, "FREESTANDING"))
+				return 0;
+
+			if (HandleBind(cvars::ragebot.fake_duck_key, keynum, down, &g_pRageBot->m_bFakeDuckState, "FAKE DUCK"))
 				return 0;
 		}
 
@@ -748,7 +759,7 @@ void StudioRenderModel()
 				if (g_pVisuals->Chams(pGameEntity))
 					bSkipRenderModel = true;
 
-				if (bSkipRenderModel) 
+				if (bSkipRenderModel)
 					return;
 			}
 		}
@@ -775,7 +786,7 @@ static void StudioSetUpTransform()
 			}
 
 			if (!IS_NULLPTR(g_pRageBot))
-			{ 
+			{
 				if ((cvars::ragebot.raim_resolver_pitch == 1 && !g_Player[pGameEntity->index]->m_bIsLocal) || (g_Player[pGameEntity->index]->m_bIsLocal && g_pGlobals->m_bIsInThirdPerson))
 				{
 					static const float flPitchBreakingPoint = 45.f;
@@ -941,7 +952,7 @@ static int InitiateGameConnection(void* pAuthBlob, int cbMaxAuthBlob, CSteamID s
 		static const bool bSeeded = (std::srand((unsigned)(__rdtsc() & 0xFFFFFFFF)), true);
 		(void)bSeeded;
 
-		for (size_t i = 0; i < 7; i++) 
+		for (size_t i = 0; i < 7; i++)
 			revEmuTicket.hash[i] = RevEmu::HashSymbolTable[std::rand() % IM_ARRAYSIZE(RevEmu::HashSymbolTable)];
 
 		revEmuTicket.hash[7] = '\0';
@@ -1044,8 +1055,8 @@ static void pfnFillRGBABlend(int x, int y, int width, int height, int r, int g, 
 
 static void IN_MouseMove(float frametime, usercmd_t* cmd)
 {
-	
-	
+
+
 
 	if (!in_mouse_move.IsHooked())
 		return;
@@ -1070,7 +1081,7 @@ bool SetupHooks()
 
 	if (!g_pGlobals->m_pWndProc)
 		return false;
-	
+
 	InitClientCvarsMap();
 	InitClientUserMsgMap();
 
@@ -1088,7 +1099,7 @@ bool SetupHooks()
 
 	if (!HookOpenGL())
 		return false;
-	
+
 	g_pClient->HUD_Frame = Initialize;
 	g_pClient->HUD_PostRunCmd = HUD_PostRunCmd;
 	g_pClient->HUD_Key_Event = HUD_Key_Event;
@@ -1118,7 +1129,7 @@ bool SetupHooks()
 	MAKE_HOOK(cl_runusercmd, g_pCL_RunUsercmd, CL_RunUsercmd);
 	MAKE_HOOK(net_send_packet, g_pNET_SendPacket, NET_SendPacket);
 	MAKE_HOOK(in_mouse_move, g_pIN_MouseMove, IN_MouseMove);
-	
+
 	g_pGlobals->m_bIsGameHooked = true;
 
 	return true;

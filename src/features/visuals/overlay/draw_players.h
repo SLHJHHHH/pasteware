@@ -66,6 +66,7 @@ private:
 	void HasDefusalKits(int index);
 	void Skeleton(int index);
 	void SkeletonBacktrack(int index);
+	void BacktrackPositions();
 	void Hitboxes(int index);
 	void HitboxesHitPosition();
 };

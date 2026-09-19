@@ -25,7 +25,7 @@ CMiscellaneous::CMiscellaneous()
 
 CMiscellaneous::~CMiscellaneous()
 {
-	
+
 }
 
 void CMiscellaneous::NameStealer()
@@ -69,7 +69,7 @@ void CMiscellaneous::NameStealer()
 
 			std::string nickname = nicknames[random];
 
-			
+
 			for (size_t j = 0; j < IM_ARRAYSIZE(english); j++)
 			{
 				auto pos = nickname.find(english[j]);
@@ -81,7 +81,7 @@ void CMiscellaneous::NameStealer()
 					break;
 				}
 			}
-			
+
 			if (!replaced)
 			{
 				for (size_t j = 0; j < IM_ARRAYSIZE(russian); j++)
@@ -107,6 +107,23 @@ void CMiscellaneous::NameStealer()
 			nicknames.erase(nicknames.begin() + random);
 		}
 	}
+}
+
+void CMiscellaneous::KillSay(int victim, bool headshot)
+{
+	if (!cvars::misc.kill_say)
+		return;
+
+	if (cvars::misc.kill_say_headshot_only && !headshot)
+		return;
+
+	char pszText[128];
+
+	snprintf(pszText, sizeof(pszText), V(cvars::misc.kill_say_text), (victim > 0 && victim <= MAX_CLIENTS) ? g_Player[victim]->m_szPrintName : "enemy");
+
+	std::string cmd = "say \"" + std::string(pszText) + "\"";
+
+	g_Engine.pfnClientCmd(cmd.c_str());
 }
 
 void CMiscellaneous::FakeLatency()
@@ -364,7 +381,7 @@ void CMiscellaneous::ChokedCommandsCounter()
 		previous_seq = client_static->netchan.outgoing_sequence;
 	}
 
-	
+
 }
 
 void CMiscellaneous::AutoReload(usercmd_s* cmd)

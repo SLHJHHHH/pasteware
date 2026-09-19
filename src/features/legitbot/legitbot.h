@@ -9,6 +9,9 @@ public:
 	bool					m_bTriggerState;
 	bool					m_bFiredFirstBullet;
 	bool					m_bPerfectSilentShot;
+	bool					m_bHumanizerActive;
+	float					m_flHumanizerTimer;
+	float					m_flHumanizerReaction;
 	float m_flFlashAlpha;
 
 	int						m_iAimPlayer;
@@ -41,6 +44,7 @@ private:
 	void					CorrectPhysentSolid(const int& nPlayerID);
 	void					SmoothAimAngles(const QAngle& QAngles, const QAngle& QAimAngles, QAngle& QNewAngles, const float& flSmoothing);
 	void					DesyncHelper(usercmd_s* cmd);
+	void					Humanizer(usercmd_s* cmd);
 
 	bool					DemoChecker(const QAngle& a_QPreviousAngles, const QAngle& a_QNewAngles, QAngle& a_QCorrectedAngles);
 };

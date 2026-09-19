@@ -109,14 +109,17 @@ namespace
 
 CLegitBot::CLegitBot()
 {
-	
 	m_flMinAngleDemoChecker = 1.f;
 	m_iStickyPlayer = -1;
+
+	m_bHumanizerActive = false;
+	m_flHumanizerTimer = 0.f;
+	m_flHumanizerReaction = 0.f;
 }
 
 CLegitBot::~CLegitBot()
 {
-	
+
 }
 
 void CLegitBot::Run(usercmd_s* cmd)
@@ -126,6 +129,15 @@ void CLegitBot::Run(usercmd_s* cmd)
 	m_flCurrentFOV = 0.f;
 	m_bFiredFirstBullet = false;
 	m_flFlashAlpha = 0.f;
+
+	static double previous_time = client_state->time;
+
+	m_flHumanizerTimer += static_cast<float>(max(client_state->time - previous_time, 0.0));
+
+	previous_time = client_state->time;
+
+	if (!cvars::legitbot.humanizer || cvars::legitbot.humanizer_reaction_max < cvars::legitbot.humanizer_reaction_min)
+		m_flHumanizerTimer = 0.f;
 
 	QAngle QAngles(cmd->viewangles), QNewAngles;
 
@@ -146,6 +158,7 @@ void CLegitBot::Run(usercmd_s* cmd)
 		StandaloneRecoilControl(cmd);
 		Trigger(cmd);
 		DesyncHelper(cmd);
+		Humanizer(cmd);
 	}
 
 	if (cvars::legitbot.aim_demochecker_bypass && client_static->demorecording)
@@ -157,7 +170,7 @@ void CLegitBot::Run(usercmd_s* cmd)
 			cmd->buttons &= ~IN_ATTACK;
 			QNewAngles = QAngles;
 		}
-		
+
 		if (~cmd->buttons & IN_ATTACK)
 		{
 			Game::MakeAngle(QNewAngles, cmd);
@@ -230,8 +243,8 @@ void CLegitBot::DesyncHelper(usercmd_s* cmd)
 	if (cmd->buttons & IN_ATTACK && g_Weapon.CanAttack())
 		return;
 
-	
-	
+
+
 	static bool bJitter = false;
 
 	if (!g_pMiscellaneous->m_iChokedCommands)
@@ -244,8 +257,8 @@ void CLegitBot::DesyncHelper(usercmd_s* cmd)
 
 	QDeltaAngles = QTempAngles.Delta360(QTempAngles2);
 
-	
-	
+
+
 	if (QDeltaAngles.y < 45.f)
 		cmd->sidemove = bJitter ? pmove->maxspeed : -pmove->maxspeed;
 }
@@ -439,6 +452,7 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 		return;
 
 	m_flCurrentFOV = 0.f;
+	m_bHumanizerActive = false;
 
 	Vector vecSrc(g_Local->m_vecEyePos), vecSpreadDir, vecAdjustedOrigin;
 
@@ -455,7 +469,7 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 		vecSpreadDir.Normalize();
 	}
 
-	
+
 	float flInitialFOV = flBestFOV;
 	int iLockedSticky = m_iStickyPlayer;
 
@@ -492,11 +506,11 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 
 		vecTempAdjustedOrigin += Game::PredictPlayer(i);
 
-		
+
 		if (cvars::legitbot.aim_smoke_check && IsSmokeBlocked(vecSrc, vecTempAdjustedOrigin))
 			continue;
 
-		
+
 		int best_hitbox = -1;
 		float best_hitbox_fov = flBestFOV;
 		Vector best_hitbox_pos;
@@ -527,7 +541,7 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 				best_hitbox_pos = vecHitbox;
 			}
 		}
-		
+
 		if (best_hitbox != -1)
 		{
 			bool bFound = false;
@@ -571,7 +585,7 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 		}
 	}
 
-	
+
 
 
 	static auto previous_time = client_state->time;
@@ -602,7 +616,8 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 
 		Vector vecAimForward, vecAimOrigin(g_Player[m_iAimPlayer]->m_vecHitbox[m_iAimHitbox]);
 
-		vecAimOrigin = vecAdjustedOrigin + vecAimOrigin - g_Player[m_iAimPlayer]->m_vecOrigin; 
+		m_bHumanizerActive = true;
+		vecAimOrigin = vecAdjustedOrigin + vecAimOrigin - g_Player[m_iAimPlayer]->m_vecOrigin;
 
 		vecAimForward = vecAimOrigin - vecSrc;
 
@@ -637,7 +652,7 @@ void CLegitBot::Aimbot(usercmd_s* cmd)
 				g_pNoSpread->GetSpreadOffset(g_Weapon->m_iRandomSeed, 1, QNewAngles, QNewAngles, NOSPREAD_PITCH_YAW_ROLL);
 
 				bool bAttack = !DemoChecker(QAngles, QNewAngles, QNewAngles);
-				
+
 				if (bAttack && cvars::legitbot.aim_dont_shoot_in_shield && Game::TraceShield(vecSrc, vecAdjustedOrigin, QNewAngles, m_iAimPlayer))
 					bAttack = false;
 
@@ -895,14 +910,14 @@ bool CLegitBot::DemoChecker(const QAngle& a_QPreviousAngles, const QAngle& a_QNe
 
 		if (QDeltaAngles.x > 0.000001)
 		{
-			if (0.007 > QDeltaAngles.x) 
+			if (0.007 > QDeltaAngles.x)
 			{
 				a_QCorrectedAngles.x = QPreviousAngles.x;
 
 				bReturn = true;
 			}
 
-			{ 
+			{
 				float flAngle = DEFAULT_FOV * QDeltaAngles.x / g_Local->m_iFOV;
 
 				if (1.f != m_flMinAngleDemoChecker && m_flMinAngleDemoChecker - flAngle > 0.000001)
@@ -914,7 +929,7 @@ bool CLegitBot::DemoChecker(const QAngle& a_QPreviousAngles, const QAngle& a_QNe
 			}
 		}
 
-		if (QDeltaAngles.y > 0.0 && QDeltaAngles.y < 0.000013) 
+		if (QDeltaAngles.y > 0.0 && QDeltaAngles.y < 0.000013)
 		{
 			a_QCorrectedAngles.y = QPreviousAngles.y;
 
@@ -1043,7 +1058,7 @@ void CLegitBot::Trigger(usercmd_s* cmd)
 
 		vecSpreadDir = vecForward + (vecRight * vecRandom[0]) + (vecUp * vecRandom[1]);
 
-		
+
 
 
 
@@ -1266,8 +1281,8 @@ void CLegitBot::SmoothAimAngles(const QAngle& QAngles, const QAngle& QAimAngles,
 
 	QNewAngles /= flSmoothing;
 
-	
-	
+
+
 
 	QNewAngles = QAngles + QNewAngles;
 
@@ -1314,4 +1329,45 @@ void CLegitBot::WriteMouseMovement(usercmd_s* cmd, const QAngle& QAngles, const 
 	cmd->viewangles[1] += QDeltaAngles.y;
 
 	cmd->viewangles.Normalize();
+}
+
+void CLegitBot::Humanizer(usercmd_s* cmd)
+{
+	if (!cvars::legitbot.humanizer)
+		return;
+
+	if (cvars::legitbot.humanizer_reaction_max < cvars::legitbot.humanizer_reaction_min)
+		return;
+
+	// human-like reaction: suppress aim until the randomized reaction time elapses
+	if (m_bHumanizerActive)
+	{
+		const float flMin = cvars::legitbot.humanizer_reaction_min;
+		const float flMax = cvars::legitbot.humanizer_reaction_max;
+
+		m_flHumanizerReaction = flMin + (flMax - flMin) * static_cast<float>(g_Engine.pfnRandomLong(0, 1000)) / 1000.f;
+
+		if (m_flHumanizerTimer < m_flHumanizerReaction)
+			cmd->buttons &= ~IN_ATTACK;
+	}
+
+	// small per-command mouse jitter so the aim does not look perfectly smooth
+	if (cvars::legitbot.humanizer_jitter > 0.f)
+	{
+		const float flJitterYaw = cvars::legitbot.humanizer_jitter * 0.1f;
+		const float flJitterPitch = cvars::legitbot.humanizer_jitter * 0.06f;
+
+		float flSin = 0.f, flCos = 0.f;
+		const float flPhase = m_flHumanizerTimer * cvars::legitbot.humanizer_curve;
+
+		flSin = sinf(flPhase) * flJitterYaw;
+		flCos = cosf(flPhase * 0.7f) * flJitterPitch;
+
+		if (g_pGlobals->m_flGaitMovement)
+		{
+			cmd->viewangles[1] += flSin;
+			cmd->viewangles[0] += flCos;
+			cmd->viewangles.Normalize();
+		}
+	}
 }

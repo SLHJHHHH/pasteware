@@ -26,6 +26,7 @@ CKreedz::CKreedz()
 	, m_bFastRunKey(false)
 	, m_bDeGenKey(false)
 	, m_bWallAhead(false)
+	, m_bEdgeJumpKey(false)
 {
 }
 
@@ -58,9 +59,9 @@ bool CKreedz::WallTrace(const Vector& origin, const Vector& direction, const flo
 
 void CKreedz::Frame()
 {
-	
-	
-	
+
+
+
 	m_bWallAhead = false;
 
 	if (!Game::IsConnected())
@@ -84,7 +85,7 @@ void CKreedz::Frame()
 	if (!WallTrace(g_Local->m_vecOrigin, vecForward, WALLBUG_DISTANCE, tr))
 		return;
 
-	
+
 	if (g_Engine.pEventAPI->EV_IndexFromTrace(&tr) > 0)
 		return;
 
@@ -116,13 +117,55 @@ void CKreedz::Run(usercmd_s* cmd)
 		DeGen(cmd);
 }
 
+void CKreedz::EdgeJump(usercmd_s* cmd)
+{
+	if (!cvars::kreedz.edgejump)
+		return;
+
+	if (!g_Local->m_bIsOnGround || g_Local->m_bIsOnLadder || g_Local->m_bIsInWater)
+		return;
+
+	if (cvars::kreedz.edgejump_key.keynum && !m_bEdgeJumpKey)
+		return;
+
+	Vector vecForward, vecRight;
+
+	g_Local->m_QAngles.AngleVectors(&vecForward, &vecRight, NULL);
+
+	vecForward.z = 0.f;
+	vecForward.Normalize();
+	vecRight.z = 0.f;
+	vecRight.Normalize();
+
+	Vector vecVelocity(g_Local->m_vecVelocity);
+
+	vecVelocity.z = 0.f;
+
+	float flMoveSpeed = vecVelocity.Length();
+
+	if (flMoveSpeed <= 0.f)
+		return;
+
+	pmtrace_t tr;
+
+	// check where the current velocity will land within the jump distance
+	if (!WallTrace(g_Local->m_vecOrigin, vecVelocity / flMoveSpeed, cvars::kreedz.edgejump_distance, tr))
+		return;
+
+	if (g_Engine.pEventAPI->EV_IndexFromTrace(&tr) > 0)
+		return;
+
+	// the floor ends ahead: jump before running off the edge
+	cmd->buttons |= IN_JUMP;
+}
+
 void CKreedz::BunnyHop(usercmd_s* cmd)
 {
 	if (!cvars::kreedz.bunnyhop)
 		return;
 
-	
-	
+
+
 	if (g_Local->m_bIsOnGround)
 		cmd->buttons |= IN_JUMP;
 }
@@ -132,7 +175,7 @@ void CKreedz::GroundStrafe(usercmd_s* cmd)
 	if (!cvars::kreedz.groundstrafe)
 		return;
 
-	
+
 	if (!g_Local->m_bIsOnGround)
 		return;
 
@@ -140,39 +183,39 @@ void CKreedz::GroundStrafe(usercmd_s* cmd)
 
 	const float flSpeed = vecVelocity.ToVec2D().Length();
 
-	
+
 	if (flSpeed < 20.f)
 		return;
 
 	const float flMaxspeed = (pmove) ? pmove->maxspeed : MAX_MOVE_SPEED;
 
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	const float flGain = std::clamp(cvars::kreedz.groundstrafe_gain, 0.f, 1.f);
 
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
+
 	const float flVelYaw = RAD2DEG(atan2(vecVelocity.y, vecVelocity.x));
 	const float flDeltaDeg = AngleDifference(cmd->viewangles.y, flVelYaw);
 	const float flTheta = DEG2RAD(flDeltaDeg);
@@ -208,12 +251,12 @@ void CKreedz::GroundStrafe(usercmd_s* cmd)
 	const float flSinTheta = sin(flTheta);
 	const float flCosTheta = cos(flTheta);
 
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
 	const float flLen = std::sqrt(flAlong * flAlong + flSide * flSide);
 
 	const float flDirAlong = (flLen > 0.f) ? (flAlong / flLen) : 1.f;
@@ -237,17 +280,17 @@ void CKreedz::FastRun(usercmd_s* cmd)
 	if (!(cmd->buttons & (IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT)))
 		return;
 
-	
+
 	if ((cmd->buttons & IN_MOVELEFT && cmd->buttons & IN_MOVERIGHT) || (cmd->buttons & IN_FORWARD && cmd->buttons & IN_BACK))
 		return;
 
-	
+
 	if (g_Local->m_flVelocity > FASTRUN_MAX_SPEED)
 		return;
 
-	
-	
-	
+
+
+
 	const float flVelYaw = RAD2DEG(atan2(g_Local->m_vecVelocity.y, g_Local->m_vecVelocity.x));
 	const float flAngleToMove = AngleDifference(cmd->viewangles.y, flVelYaw);
 
@@ -276,11 +319,11 @@ void CKreedz::AutoJOF(usercmd_s* cmd)
 	if (g_Local->m_bIsOnGround || g_Local->m_bIsOnLadder || g_Local->m_bIsInWater)
 		return;
 
-	
+
 	if (g_Local->m_flFallVelocity < 0.f || g_Local->m_flEdgeDistance <= cvars::kreedz.auto_jof_min_distance)
 		return;
 
-	
+
 	if (g_Local->m_flEdgeDistance <= g_Local->m_flVelocity * g_Local->m_flFrameTime)
 		cmd->buttons |= IN_JUMP;
 }
@@ -293,13 +336,13 @@ void CKreedz::JumpBug(usercmd_s* cmd)
 	if (g_Local->m_bIsOnGround || g_Local->m_flFallVelocity < 150.f)
 		return;
 
-	
-	
+
+
 	if (g_Local->m_flHeightGround > JUMPBUG_DISTANCE)
 		return;
 
-	
-	
+
+
 	cmd->buttons |= IN_JUMP | IN_DUCK;
 }
 
@@ -311,9 +354,9 @@ void CKreedz::EdgeBug(usercmd_s* cmd)
 	if (g_Local->m_bIsOnGround || g_Local->m_flFallVelocity < 1.f)
 		return;
 
-	
-	
-	
+
+
+
 	if (g_Local->m_flHeightInDuck > 1.f || g_Local->m_flHeightGround <= 1.f)
 		return;
 
@@ -328,7 +371,7 @@ void CKreedz::WallBug(usercmd_s* cmd)
 	if (g_Local->m_bIsOnGround)
 		return;
 
-	
+
 	if (!m_bWallAhead)
 		return;
 
@@ -361,17 +404,17 @@ void CKreedz::Strafe(usercmd_s* cmd, const bool& legit)
 	if (flSpeed < 20.f)
 		return;
 
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
+
 	const float flVelYaw = RAD2DEG(atan2(vecVelocity.y, vecVelocity.x));
 	const float flDeltaDeg = AngleDifference(cmd->viewangles.y, flVelYaw);
 	const float flDelta = DEG2RAD(flDeltaDeg);
@@ -383,12 +426,12 @@ void CKreedz::Strafe(usercmd_s* cmd, const bool& legit)
 	const float flSin = sin(flDelta);
 	const float flCos = cos(flDelta);
 
-	
+
 	cmd->forwardmove = flPower * flSide * flSin;
 	cmd->sidemove = flPower * -flSide * flCos;
 
-	
-	
+
+
 	QAngle QAngles(cmd->viewangles);
 
 	QAngles.Normalize();
@@ -406,9 +449,9 @@ void CKreedz::Strafe(usercmd_s* cmd, const bool& legit)
 
 	QAngles.Normalize();
 
-	
-	
-	
+
+
+
 	Game::MakeAngle(QAngles, cmd);
 }
 
@@ -467,7 +510,7 @@ void CKreedz::DeGen(usercmd_s* cmd)
 
 	const float flSpeed = vecVelocity.ToVec2D().Length();
 
-	
+
 	if (flSpeed < 20.f)
 		return;
 
@@ -475,8 +518,8 @@ void CKreedz::DeGen(usercmd_s* cmd)
 	const float flDeltaDeg = AngleDifference(cmd->viewangles.y, flVelYaw);
 	const float flDelta = DEG2RAD(flDeltaDeg);
 
-	
-	
+
+
 	const float flSide = (flDeltaDeg >= 0.f) ? 1.f : -1.f;
 
 	const float flPower = std::clamp(cvars::kreedz.degen_power, 1.f, 1000.f);
@@ -485,7 +528,7 @@ void CKreedz::DeGen(usercmd_s* cmd)
 	const float flSin = sin(flDelta);
 	const float flCos = cos(flDelta);
 
-	
+
 	cmd->forwardmove = flPower * (flSide * flSin - flTilt * flCos);
 	cmd->sidemove = flPower * (-flSide * flCos - flTilt * flSin);
 }
