@@ -20,7 +20,7 @@ static bool HookUserMsg(const std::string& name, const pfnUserMsgHook& pfn)
 	while (pClientUserMsgs)
 	{
 		if (!name.compare(pClientUserMsgs->name))
-		{		
+		{
 			pClientUserMsgs->pfn = pfn;
 			return true;
 		}
@@ -55,7 +55,7 @@ static bool UnHookUserMsg(const std::string& name)
 
 static int MSG_MOTD(const char* pszName, int iSize, void* pbuf)
 {
-	
+
 	if (!g_pGlobals->m_bIsUnloadingLibrary && cvars::misc.motd_block)
 		return 1;
 
@@ -124,7 +124,7 @@ static int MSG_ResetHUD(const char* pszName, int iSize, void* pbuf)
 				continue;
 
 			g_Player[i]->m_iHealth = Game::GetRespawnHealth();
-			g_Player[i]->m_bHasC4 = false;		
+			g_Player[i]->m_bHasC4 = false;
 			g_Player[i]->m_iMoney = 0;
 			g_Player[i]->m_iSequence = SEQUENCE_IDLE;
 			g_Player[i]->m_iSequenceFrame = 0;
@@ -195,16 +195,12 @@ static int MSG_DeathMsg(const char* pszName, int iSize, void* pbuf)
 				g_Player[victim]->m_bHasDefusalKits = false;
 			}
 
-			if (killer != victim)
+			if (killer != victim && g_Player[killer]->m_bIsLocal && !g_Player[victim]->m_bIsLocal)
 			{
-				if (g_Player[killer]->m_bIsLocal)
-				{
-					g_Local->m_flLastKillTime = static_cast<float>(client_state->time);
-				}
-				else
-				{
-					g_Player[killer]->m_flLastKillTime = static_cast<float>(client_state->time);
-				}
+				g_Local->m_flLastKillTime = static_cast<float>(client_state->time);
+
+				if (!IS_NULLPTR(g_pMiscellaneous))
+					g_pMiscellaneous->KillSay(victim, false);
 			}
 		}
 	}

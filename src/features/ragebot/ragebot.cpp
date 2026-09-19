@@ -4,12 +4,52 @@ std::unique_ptr<CRageBot> g_pRageBot;
 
 CRageBot::CRageBot()
 {
-	
+	m_bFreestanding = false;
+	m_bFakeDuckState = false;
+	m_bFakeDuckActive = false;
+	m_bResolverForceUpdate = false;
+	m_flEnemyShotTime = 0.f;
 }
 
 CRageBot::~CRageBot()
 {
-	
+
+}
+
+void CRageBot::OnEnemyShot()
+{
+	m_flEnemyShotTime = static_cast<float>(client_state->time);
+}
+
+void CRageBot::FakeDuck(usercmd_s* cmd)
+{
+	m_bFakeDuckActive = false;
+
+	if (!cvars::ragebot.fake_duck)
+		return;
+
+	if (!Game::IsConnected() || g_Local->m_bIsDead)
+		return;
+
+	if (cvars::ragebot.fake_duck_key.keynum && !m_bFakeDuckState)
+		return;
+
+	if (!g_Local->m_bIsOnGround || g_Local->m_bIsOnLadder || g_Local->m_bIsInWater)
+		return;
+
+	if (IS_NULLPTR(g_pMiscellaneous) || g_pGlobals->m_nNewCommands < 2)
+		return;
+
+	// crouch flicker that is only partially delivered to the server (choked),
+	// which keeps the client-side position standing while the model crouches
+	if (g_pMiscellaneous->m_iChokedCommands >= std::clamp(cvars::ragebot.fake_duck_choke, 1, g_pGlobals->m_nNewCommands - 1))
+		return;
+
+	cmd->buttons |= IN_DUCK;
+
+	Game::SendCommand(false);
+
+	m_bFakeDuckActive = true;
 }
 
 void CRageBot::Run(usercmd_s* cmd)
@@ -78,10 +118,10 @@ void CRageBot::FakeLag(usercmd_s* cmd)
 		}
 		else if (cvars::ragebot.fakelag_type == 1)
 		{
-			static const float flDistance = sqrt(LAG_COMPENSATION_TELEPORTED_DISTANCE_SQR); 
+			static const float flDistance = sqrt(LAG_COMPENSATION_TELEPORTED_DISTANCE_SQR);
 
 			float flLength = g_Local->m_flVelocity * g_Local->m_flFrameTime;
-			
+
 			if (flLength < flDistance && flLength)
 			{
 				int nNeedChoke = (int)(flDistance / flLength);
@@ -104,16 +144,16 @@ void CRageBot::AntiAimbot(usercmd_s* cmd)
 
 	if (cvars::ragebot.aa_enabled)
 	{
-		if (cmd->buttons & IN_USE) 
+		if (cmd->buttons & IN_USE)
 			return;
 
 		if (g_Local->m_bIsOnLadder)
 			return;
 
-		if (pmove->waterjumptime) 
+		if (pmove->waterjumptime)
 			return;
 
-		if (g_Weapon.IsNade() && cvars::ragebot.aa_conditions[1]) 
+		if (g_Weapon.IsNade() && cvars::ragebot.aa_conditions[1])
 		{
 			if (~cmd->buttons & IN_ATTACK)
 			{
@@ -124,7 +164,7 @@ void CRageBot::AntiAimbot(usercmd_s* cmd)
 					return;
 			}
 		}
-		else if (g_Weapon.IsC4()) 
+		else if (g_Weapon.IsC4())
 		{
 
 		}
@@ -228,6 +268,42 @@ void CRageBot::AntiAimbot(usercmd_s* cmd)
 		if (!g_pMiscellaneous->m_iChokedCommands)
 			bJitter = !bJitter;
 
+		// freestanding: pick the anti-aim side with the most space behind the local player
+		bool bSide = cvars::ragebot.aa_side;
+
+		if (cvars::ragebot.aa_freestanding && cvars::ragebot.aa_freestanding_distance > 0.f)
+		{
+			bool bActive = true;
+
+			if (cvars::ragebot.aa_freestanding_mode == 1)
+				bActive = m_bFreestanding;
+			else if (cvars::ragebot.aa_freestanding_mode == 2)
+				bActive = m_bFreestanding || !cvars::ragebot.aa_freestanding_key.keynum;
+
+			if (bActive)
+			{
+				Vector view_angles, forward, right;
+
+				g_Engine.GetViewAngles(view_angles);
+				g_Engine.pfnAngleVectors(view_angles, forward, right, NULL);
+
+				Vector origin(g_Local->m_vecEyePos);
+			Vector left_end = origin - right * cvars::ragebot.aa_freestanding_distance;
+			Vector right_end = origin + right * cvars::ragebot.aa_freestanding_distance;
+
+			pmtrace_t tr;
+
+			g_Engine.pEventAPI->EV_SetTraceHull(HULL_POINT);
+			g_Engine.pEventAPI->EV_PlayerTrace(origin, left_end, PM_NORMAL, -1, &tr);
+			const float flLeftDistance = tr.fraction;
+			g_Engine.pEventAPI->EV_PlayerTrace(origin, right_end, PM_NORMAL, -1, &tr);
+			const float flRightDistance = tr.fraction;
+
+			if (flLeftDistance != flRightDistance)
+				bSide = flLeftDistance > flRightDistance;
+			}
+		}
+
 		if (!g_pGlobals->m_flGaitMovement)
 		{
 			if (cvars::ragebot.aa_side_switch_when_take_damage)
@@ -269,16 +345,16 @@ void CRageBot::AntiAimbot(usercmd_s* cmd)
 			if (cvars::ragebot.aa_stand_desync)
 			{
 				if (cvars::ragebot.aa_stand_yaw == 6)
-					QNewAngles.y += cvars::ragebot.aa_side ? -90.f : 90.f;
+					QNewAngles.y += bSide ? -90.f : 90.f;
 
 				if (!g_pMiscellaneous->m_iChokedCommands)
 				{
 					float flDesyncAngle = 0.f;
 
 					if (cvars::ragebot.aa_stand_desync == 1)
-						flDesyncAngle = cvars::ragebot.aa_side ? -120.f : 120.f;
+						flDesyncAngle = bSide ? -120.f : 120.f;
 					else if (cvars::ragebot.aa_stand_desync == 2)
-						flDesyncAngle = cvars::ragebot.aa_side ? -170.f : 170.f;
+						flDesyncAngle = bSide ? -170.f : 170.f;
 
 					if (cvars::ragebot.aa_stand_yaw == 2 || cvars::ragebot.aa_stand_yaw == 3)
 					{
@@ -289,7 +365,7 @@ void CRageBot::AntiAimbot(usercmd_s* cmd)
 						else if (flGaitYawDifference > 180)
 							flGaitYawDifference -= 360;
 
-						if (flGaitYawDifference < -abs(flDesyncAngle) || flGaitYawDifference > abs(flDesyncAngle)) 
+						if (flGaitYawDifference < -abs(flDesyncAngle) || flGaitYawDifference > abs(flDesyncAngle))
 							flDesyncAngle = -flDesyncAngle;
 					}
 
@@ -333,6 +409,15 @@ void CRageBot::AntiAimbot(usercmd_s* cmd)
 					Game::SendCommand(false);
 				}
 			}
+		}
+
+		// on shot: hide the real side for a short time after an enemy fires
+		if (cvars::ragebot.aa_on_shot && cvars::ragebot.aa_on_shot_time > 0.f && m_flEnemyShotTime > 0.f &&
+			static_cast<float>(client_state->time) - m_flEnemyShotTime <= cvars::ragebot.aa_on_shot_time)
+		{
+			QNewAngles.x = bSide ? -89.f : 89.f;
+			QNewAngles.y += bSide ? 120.f : -120.f;
+			QNewAngles.z = bSide ? 60.f : -60.f;
 		}
 
 		if (cvars::ragebot.aa_roll == 1)
@@ -500,7 +585,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 
 			if (pGameEntity)
 			{
-				if (cvars::ragebot.raim_delayshot[0]) 
+				if (cvars::ragebot.raim_delayshot[0])
 				{
 					Vector vecDelta = pGameEntity->curstate.origin - pGameEntity->prevstate.origin;
 
@@ -508,7 +593,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 						continue;
 				}
 
-				if (cvars::ragebot.raim_delayshot[1]) 
+				if (cvars::ragebot.raim_delayshot[1])
 				{
 					if (pGameEntity->curstate.animtime == pGameEntity->prevstate.animtime)
 						continue;
@@ -533,7 +618,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 
 			Vector vecHitbox(vecTempAdjustedOrigin + g_Player[i]->m_vecHitbox[hitbox] - g_Player[i]->m_vecOrigin);
 
-			{ 
+			{
 				Vector vecAimOrigin = vecHitbox;
 
 				float flFOV = vecSpreadDir.AngleBetween(vecAimOrigin - vecSrc);
@@ -549,14 +634,14 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 						int iDamage = Game::TakeDamage(vecSrc, vecAimOrigin, hitgroup, i);
 
 						if (iDamage)
-							targets.push_back(CRageBotTarget{ i, hitbox, -1, iDamage, 0, flFOV, vecAimOrigin });
+							targets.push_back(CRageBotTarget{ i, hitbox, -1, iDamage, 0, flFOV, vecAimOrigin, false });
 					}
 					else if (cvars::weapons[g_Weapon->m_iWeaponID].raim_auto_penetration)
 					{
 						int iDamage = Game::TakeSimulatedDamage(vecSrc, vecAimOrigin, hitgroup, i);
 
-						if (iDamage)
-							targets.push_back(CRageBotTarget{ i, hitbox, -1, iDamage, 0, flFOV, vecAimOrigin });
+						if (iDamage && (!cvars::ragebot.raim_safepoint || iDamage >= g_Player[i]->m_iHealth))
+							targets.push_back(CRageBotTarget{ i, hitbox, -1, iDamage, 0, flFOV, vecAimOrigin, true });
 					}
 				}
 			}
@@ -569,7 +654,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 					continue;
 			}
 
-			{ 
+			{
 				float flHitboxScale = GetScaleOfHitbox(hitbox);
 
 				if (flHitboxScale)
@@ -597,8 +682,8 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 							{
 								int iDamage = Game::TakeSimulatedDamage(vecSrc, vecAimOrigin, hitgroup, i);
 
-								if (iDamage)
-									targets.push_back(CRageBotTarget{ i, hitbox, point, iDamage, 0, flFOV, vecAimOrigin });
+								if (iDamage && (!cvars::ragebot.raim_safepoint || iDamage >= g_Player[i]->m_iHealth))
+									targets.push_back(CRageBotTarget{ i, hitbox, point, iDamage, 0, flFOV, vecAimOrigin, true });
 							}
 						}
 					}
@@ -615,7 +700,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 		return;
 	}
 
-	
+
 
 	std::deque<CRageBotTarget>::iterator best_target_damage = targets.begin(), best_target_fov = targets.begin();
 
@@ -626,6 +711,15 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 
 	for (auto target = targets.begin(); target != targets.end(); target++)
 	{
+		// auto force damage: on low health targets only accept shots that will kill
+		if (cvars::ragebot.raim_auto_force_damage)
+		{
+			const int iHealth = g_Player[target->index]->m_iHealth;
+
+			if (iHealth > 0 && iHealth <= cvars::ragebot.raim_auto_force_damage_hp && target->damage < iHealth)
+				continue;
+		}
+
 		if (cvars::ragebot.raim_target_selection[0])
 		{
 			if (target->damage >= g_Player[target->index]->m_iHealth)
@@ -653,6 +747,10 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 
 		if (cvars::ragebot.raim_target_selection[2])
 			target->weight += GetWeightOfHitbox(target->hitbox);
+
+		// safepoint: strongly prefer targets that are visible without penetration
+		if (cvars::ragebot.raim_safepoint && target->through_wall)
+			target->weight -= 100;
 	}
 
 	if (best_damage)
@@ -675,6 +773,13 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 
 	if (!best_weight)
 		return;
+
+	// resolver auto: after enough misses on the selected player, force the next resolver yaw option
+	if (cvars::ragebot.raim_resolver_auto && g_HitRegister.m_iResolverTarget == m_TargetData.index)
+	{
+		g_HitRegister.m_iResolverTarget = -1;
+		m_bResolverForceUpdate = true;
+	}
 
 	if (cvars::weapons[g_Weapon->m_iWeaponID].raim_autostop && g_Local->m_bIsOnGround)
 	{
@@ -722,7 +827,7 @@ void CRageBot::Aimbot(usercmd_s* cmd)
 			cmd->buttons |= IN_DUCK;
 	}
 
-	
+
 
 
 

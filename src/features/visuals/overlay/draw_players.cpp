@@ -14,6 +14,9 @@ void CDrawPlayers::Overlay()
 	if (cvars::visuals.esp_player_sounds)
 		m_pSound->Draw();
 
+	if (cvars::visuals.backtrack_positions)
+		BacktrackPositions();
+
 	ImGui::PushFont(g_pFontList[std::clamp(cvars::visuals.esp_font_size, 1, 25)]);
 
 	if (cvars::visuals.esp_player)
@@ -189,7 +192,7 @@ static float GetNextlineText(int index, int& pos)
 	{
 		if (&pos == &cvars::visuals.esp_player_name)
 			return nextline;
-	
+
 		if (pos == cvars::visuals.esp_player_name)
 			nextline += GImGui->Font->FontSize;
 	}
@@ -284,8 +287,8 @@ ImVec2 CDrawPlayers::GetPosition(int index, int& pos, std::string text, ImVec2 t
 		position.y = m_rect.Max.y + spacing + nextline - 2.f;
 	}
 
-	if (&pos == &cvars::visuals.esp_player_weapon_icon || 
-		&pos == &cvars::visuals.esp_player_has_c4 || 
+	if (&pos == &cvars::visuals.esp_player_weapon_icon ||
+		&pos == &cvars::visuals.esp_player_has_c4 ||
 		&pos == &cvars::visuals.esp_player_has_defusal_kits)
 	{
 		switch (pos)
@@ -440,7 +443,7 @@ void CDrawPlayers::HealthBar(int index)
 	color_health.value.w = color_team.value.w;
 
 	FadeoutDormant(index, color_health, g_Player[index]->m_flHistory);
-	DrawBar(index, cvars::visuals.esp_player_health, static_cast<float>(g_Player[index]->m_iHealth), color_health, 
+	DrawBar(index, cvars::visuals.esp_player_health, static_cast<float>(g_Player[index]->m_iHealth), color_health,
 		GetSpacingBar(), cvars::visuals.esp_player_health_percentage, cvars::visuals.esp_player_health_percentage_color);
 }
 
@@ -621,7 +624,7 @@ void CDrawPlayers::Actions(int index)
 
 		g_pRenderer->AddRectFilled(a, b, color_background);
 		g_pRenderer->AddRectFilled(a, a + ImVec2(size, 2), color_actions);
-		
+
 		if (cvars::visuals.esp_player_box_outline)
 			g_pRenderer->AddRect(a - 1, b, color_outline);
 	}
@@ -810,7 +813,7 @@ void CDrawPlayers::HitboxesHitPosition()
 			{
 				if (hitposition_data[pGameEntity->index].empty() || hitposition_data[pGameEntity->index].back().timestamp != g_HitRegister->m_flTimeStamp)
 				{
-					HitboxesHitPositionData data;	
+					HitboxesHitPositionData data;
 
 					memcpy(&data.hitbox_points, g_Player[pGameEntity->index]->m_vecHitboxPoints, sizeof(data.hitbox_points));
 					data.hitboxnum = g_HitRegister->m_iHitboxNum;
@@ -836,15 +839,97 @@ void CDrawPlayers::HitboxesHitPosition()
 		{
 			if (client_state->time - hitposition.timestamp < cvars::visuals.esp_player_hitboxes_hit_position_time)
 			{
-				for (int hitboxnum = 0; hitboxnum < HITBOX_MAX - 1; hitboxnum++)		
+				for (int hitboxnum = 0; hitboxnum < HITBOX_MAX - 1; hitboxnum++)
 				{
 					DrawHitbox(hitposition.hitbox_points[hitboxnum], hitposition.hitboxnum == hitboxnum
-						? cvars::visuals.esp_player_hitboxes_hit_position_color2 
+						? cvars::visuals.esp_player_hitboxes_hit_position_color2
 						: cvars::visuals.esp_player_hitboxes_hit_position_color);
 				}
 			}
 			else
 				hitposition_data[pGameEntity->index].erase(hitposition_data[pGameEntity->index].begin());
 		}
+	}
+}
+void CDrawPlayers::BacktrackPositions()
+{
+	if (g_Local->m_bIsDead)
+		return;
+
+	for (int i = 1; i <= client_state->maxclients; i++)
+	{
+		if (g_Player[i]->m_bIsLocal)
+			continue;
+
+		if (!g_Player[i]->m_bIsConnected)
+			continue;
+
+		if (g_Player[i]->m_bIsDead)
+			continue;
+
+		if (!g_Player[i]->m_bIsInPVS)
+			continue;
+
+		if (g_Player[i]->m_iTeamNum == TEAM_UNASSIGNED || g_Player[i]->m_iTeamNum == TEAM_SPECTATOR)
+			continue;
+
+		if (!cvars::visuals.esp_player_players[1] && g_Player[i]->m_iTeamNum != g_Local->m_iTeamNum)
+			continue;
+
+		if (!cvars::visuals.esp_player_players[2] && g_Player[i]->m_iTeamNum == g_Local->m_iTeamNum)
+			continue;
+
+		cl_entity_s* pGameEntity = g_Engine.GetEntityByIndex(i);
+
+		if (!Game::IsValidEntity(pGameEntity))
+			continue;
+
+		Vector view_angles, view_dir;
+
+		g_Engine.GetViewAngles(view_angles);
+		g_Engine.pfnAngleVectors(view_angles, view_dir, NULL, NULL);
+		view_dir.Normalize();
+
+		Vector best_origin;
+		float best_angle = FLT_MAX;
+
+		for (int lerp_msec = 0; lerp_msec <= 100; lerp_msec += 5)
+		{
+			Vector origin;
+
+			if (!Game::BacktrackPlayer(pGameEntity, lerp_msec, origin))
+				continue;
+
+			const float angle = view_dir.AngleBetween(origin - g_Local->m_vecEyePos);
+
+			if (angle < best_angle)
+			{
+				best_angle = angle;
+				best_origin = origin;
+			}
+
+			Vector2D screen;
+
+			if (!Game::WorldToScreen(origin, screen))
+				continue;
+
+			ImColor color = cvars::visuals.backtrack_positions_color;
+			color.value.w *= std::clamp(1.f - static_cast<float>(lerp_msec) / 130.f, 0.15f, 1.f);
+
+			g_pRenderer->AddCircleFilled(ImVec2(screen.x, screen.y), 2.f, color, 12);
+		}
+
+		if (!cvars::visuals.backtrack_positions_best_tick || best_angle == FLT_MAX)
+			continue;
+
+		Vector2D screen;
+
+		if (!Game::WorldToScreen(best_origin, screen))
+			continue;
+
+		const ImColor best_color(cvars::visuals.backtrack_positions_color);
+
+		g_pRenderer->AddCircle(ImVec2(screen.x, screen.y), 7.f, best_color, 18, 1.f);
+		g_pRenderer->AddText(ImVec2(screen.x, screen.y - 16.f), best_color, FontFlags_CenterX | FontFlags_Shadow, "best");
 	}
 }

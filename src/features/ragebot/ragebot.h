@@ -9,6 +9,7 @@ struct CRageBotTarget
 	float			fov;
 
 	Vector			origin;
+	bool			through_wall;
 };
 
 class CRageBot
@@ -20,6 +21,12 @@ public:
 	bool			m_bAimState;
 	bool			m_bForceBody;
 	bool			m_bForceMinDamage;
+	bool			m_bResolverForceUpdate;
+
+	bool			m_bFreestanding;
+	bool			m_bFakeDuckState;
+	bool			m_bFakeDuckActive;
+	float			m_flEnemyShotTime;
 
 	QAngle			m_QAntiAimbotAngle;
 
@@ -27,7 +34,10 @@ public:
 	void			Aimbot(usercmd_s* cmd);
 	void			AntiAimbot(usercmd_s* cmd);
 	void			FakeLag(usercmd_s* cmd);
-	
+	void			FakeDuck(usercmd_s* cmd);
+
+	void			OnEnemyShot();
+
 private:
 	CRageBotTarget  m_TargetData;
 

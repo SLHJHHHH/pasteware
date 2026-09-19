@@ -52,6 +52,11 @@ struct cvars_ragebot
 	float	raim_low_fps_value;
 	int		raim_resolver_pitch;
 	int		raim_resolver_yaw;
+	bool	raim_resolver_auto;
+	int		raim_resolver_misses;
+	bool	raim_safepoint;
+	bool	raim_auto_force_damage;
+	int		raim_auto_force_damage_hp;
 	bind_t	raim_force_body_key;
 	bool	raim_target_selection[3];
 	int		raim_target_weight_damage;
@@ -80,6 +85,17 @@ struct cvars_ragebot
 	float	aa_roll_static;
 	bool	aa_untrusted_checks;
 	bool	aa_conditions[3];
+
+	bool	aa_freestanding;
+	int		aa_freestanding_mode;
+	bind_t	aa_freestanding_key;
+	float	aa_freestanding_distance;
+	bool	aa_on_shot;
+	float	aa_on_shot_time;
+
+	bool	fake_duck;
+	bind_t	fake_duck_key;
+	int		fake_duck_choke;
 
 	bool	fakelag_enabled;
 	bool	fakelag_while_shooting;
@@ -129,6 +145,12 @@ struct cvars_legitbot
 	int		trigger_shot_delay;
 	float	trigger_hitbox_scale[6];
 	bind_t	trigger_key;
+
+	bool	humanizer;
+	int		humanizer_reaction_min;
+	int		humanizer_reaction_max;
+	int		humanizer_jitter;
+	int		humanizer_curve;
 };
 
 struct cvars_weapons
@@ -355,6 +377,40 @@ struct cvars_visuals
 	float	effects_poly_filter_color[4];
 	bool	main_allow_resize;
 	bool	main_notifications;
+
+	bool	indicators;
+	int		indicators_pos;
+	bool	indicators_elements[5];
+	float	indicators_color[4];
+
+	bool	hitsound;
+	int		hitsound_type;
+	float	hitsound_volume;
+	int		hitsound_headshot_pitch;
+
+	bool	hitmarker;
+	float	hitmarker_time;
+	float	hitmarker_size;
+	float	hitmarker_color[4];
+	float	hitmarker_headshot_color[4];
+
+	bool	damage_log;
+	int		damage_log_pos;
+	float	damage_log_time;
+	float	damage_log_color[4];
+	float	damage_log_headshot_color[4];
+
+	bool	grenade_preview;
+	bool	grenade_preview_timer;
+	float	grenade_preview_color[4];
+
+	bool	spectator_list;
+	int		spectator_list_pos;
+	float	spectator_list_color[4];
+
+	bool	backtrack_positions;
+	float	backtrack_positions_color[4];
+	bool	backtrack_positions_best_tick;
 };
 
 struct cvars_kreedz
@@ -392,6 +448,10 @@ struct cvars_kreedz
 
 	bool	legit_strafe;
 	float	legit_strafe_speed;
+
+	bool	edgejump;
+	bind_t	edgejump_key;
+	float	edgejump_distance;
 };
 
 struct cvars_misc
@@ -413,7 +473,7 @@ struct cvars_misc
 	bool	replace_models_with_original;
 	bool	steamid_spoofer;
 
-	
+
 	bind_t	auto_block_key;
 	bool	auto_block;
 	bind_t	auto_boost_key;
@@ -426,19 +486,19 @@ struct cvars_misc
 	bool	maximize_on_respawn;
 	bool	client_weapons;
 
-	
+
 	bool	sandbox_enabled;
 
-	
+
 	bind_t	speed_key;
 	bool	speed_enabled;
 	float	speed_value;
 
-	
+
 	bind_t	airstuck_key;
 	bool	airstuck;
 
-	
+
 	bind_t	doubletap_key;
 	bool	doubletap;
 	int		doubletap_shift;
@@ -455,6 +515,10 @@ struct cvars_misc
 	float	kb_stab_distance;
 	float	kb_aim_hitbox_scale;
 	bool	kb_debug;
+
+	bool	kill_say;
+	bool	kill_say_headshot_only;
+	char	kill_say_text[64];
 };
 
 extern std::map<std::string, cvar_t*> g_ClientCvarsMap;

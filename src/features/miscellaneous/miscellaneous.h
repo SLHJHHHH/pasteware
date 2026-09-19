@@ -10,12 +10,12 @@ public:
 	bool			m_bFakeLatencyActive;
 	bool			m_bPositionAdjustmentActive;
 
-	
+
 	int				m_iDoubleTapCharge;
 	bool			m_bDoubleTapShifting;
 	double			m_flLastDoubleTapTime;
 
-	
+
 	bool			m_bAirStuckActive;
 	bool			m_bFakeLatencyHoldKey;
 	bool			m_bAutoBlockKey;
@@ -34,10 +34,11 @@ public:
 	void			AutoReload(usercmd_s* cmd);
 	void			AutoPistol(usercmd_s* cmd);
 	void			NameStealer();
+	void			KillSay(int victim, bool headshot);
 	void			FakeLatency();
 	void			RecordHUDCommands(usercmd_s* cmd);
 
-	
+
 	void			AutoBlock(usercmd_s* cmd);
 	void			AutoBoost(usercmd_s* cmd);
 	void			PredictPlayers();

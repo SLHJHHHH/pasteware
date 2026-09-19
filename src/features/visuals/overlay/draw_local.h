@@ -12,6 +12,28 @@ struct BulletTracerData
 	double time;
 };
 
+struct HitMarkerData
+{
+	bool headshot;
+	float timestamp;
+};
+
+struct DamageLogData
+{
+	std::string name;
+	int damage;
+	int health;
+	bool headshot;
+	double timestamp;
+};
+
+void RegisterHitEvent(int index, int damage, bool headshot);
+
+extern ToggleStatusData g_ToggleStatus;
+extern HitMarkerData g_HitMarker;
+extern std::deque<BulletTracerData> g_BulletTracers;
+extern std::deque<DamageLogData> g_DamageLog;
+
 class CDrawLocal
 {
 public:
@@ -34,7 +56,8 @@ private:
 	void HotkeyList();
 	void Statistics();
 	void BulletTracers();
+	void Indicators();
+	void HitMarker();
+	void DamageLog();
+	void SpectatorList();
 };
-
-extern ToggleStatusData g_ToggleStatus;
-extern std::deque<BulletTracerData> g_BulletTracers;
