@@ -18,33 +18,94 @@ namespace
 		return false;
 	}
 
+	// Flow layout. Callers still pass a position and size, but only pos.x (which selects the column) and
+	// pos.y of the first panel in a column are used: later panels stack under the previous one with a fixed
+	// gap, and fixed-height panels shrink or grow to their measured content (size.y <= 0 still means
+	// "fill to the bottom"). Heights are measured while drawing and used from the next frame on.
+	constexpr float k_panel_gap = 10.f;
+
+	struct panel_column_t
+	{
+		float x;
+		float bottom;
+	};
+
+	panel_column_t g_panel_columns[8];
+	int g_panel_column_count = 0;
+	int g_panel_page_salt = 0;
+	std::unordered_map<std::string, float> g_panel_heights;
+
+	void panel_begin_page(int page_salt)
+	{
+		g_panel_column_count = 0;
+		g_panel_page_salt = page_salt;
+	}
+
 	void panel(const char* name, const ImVec2& pos, const ImVec2& size, const std::function<void()>& draw)
 	{
 		if (g_pMenu.get() && !contains_filter(name, g_pMenu->SearchText()))
 			return;
 
+		panel_column_t* column = nullptr;
+
+		for (int i = 0; i < g_panel_column_count; ++i)
+		{
+			if (fabsf(g_panel_columns[i].x - pos.x) < 1.f)
+			{
+				column = &g_panel_columns[i];
+				break;
+			}
+		}
+
+		if (!column && g_panel_column_count < IM_ARRAYSIZE(g_panel_columns))
+		{
+			column = &g_panel_columns[g_panel_column_count++];
+			column->x = pos.x;
+			column->bottom = -1.f;
+		}
+
+		const ImVec2 place(pos.x, (column && column->bottom >= 0.f) ? column->bottom + k_panel_gap : pos.y);
+		const bool fill = size.y <= 0.f;
+		const std::string key = std::to_string(g_panel_page_salt) + name;
+		const auto cached = g_panel_heights.find(key);
+
 		ImVec2 real_size = size;
-		if (real_size.y <= 0.f)
+		if (fill)
 		{
 			const float content_bottom = ImGui::GetWindowContentRegionMax().y;
 			const float pad_bottom = GImGui->Style.WindowPadding.y;
-			real_size.y = ImMax(content_bottom - pos.y - pad_bottom, 80.f);
+			real_size.y = ImMax(content_bottom - place.y - pad_bottom, 80.f);
+		}
+		else if (cached != g_panel_heights.end())
+		{
+			real_size.y = cached->second;
 		}
 
-		ImGui::SetCursorPos(pos);
+		ImGui::SetCursorPos(place);
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.105f, 0.105f, 0.112f, 1.f));
 		ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.18f, 0.18f, 0.19f, 1.f));
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.f, 10.f));
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.f);
 		ImGui::BeginChild(name, real_size, true);
+
+		const ImVec2 title_pos = ImGui::GetCursorScreenPos();
+		GImGui->CurrentWindow->DrawList->AddRectFilled(title_pos + ImVec2(-7.f, 1.f), title_pos + ImVec2(-4.f, ImGui::GetTextLineHeight() - 1.f), ImColor(components::get_accent_color()), 1.5f);
+
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.91f, 0.91f, 0.92f, 1.f));
 		ImGui::TextUnformatted(name);
 		ImGui::PopStyleColor();
 		ImGui::Separator();
 		draw();
+
+		if (!fill)
+			g_panel_heights[key] = ImGui::GetCursorPosY() + GImGui->Style.WindowPadding.y;
+
 		ImGui::EndChild();
 		ImGui::PopStyleVar(2);
 		ImGui::PopStyleColor(2);
+
+		if (column)
+			column->bottom = place.y + real_size.y;
 	}
 
 	bool side(const char* label, bool active)
@@ -101,6 +162,11 @@ namespace
 		{ "Doubletap", &cvars::misc.doubletap_key },
 		{ "Kreedz", &cvars::kreedz.key },
 		{ "Fast run", &cvars::kreedz.fastrun_key },
+		{ "GoldSrc strafe", &cvars::kreedz.strafe_ideal_key },
+		{ "Rage strafe", &cvars::kreedz.rage_strafe_key },
+		{ "Legit strafe", &cvars::kreedz.legit_strafe_key },
+		{ "Doppler strafe", &cvars::kreedz.doppler_strafe_key },
+		{ "Ladder strafe", &cvars::kreedz.ladder_strafe_key },
 		{ "Slow walk", &cvars::kreedz.slowwalk_key },
 		{ "DeGen", &cvars::kreedz.degen_key },
 		{ "Edge jump", &cvars::kreedz.edgejump_key },
@@ -184,11 +250,11 @@ void CMenu::Draw()
 	ImGui::BeginChild("##prim_sidebar", ImVec2(136.f, content_h), false);
 	switch (m_iSelectedTab)
 	{
-	case AIMBOT: tabs({ "Legit", "Rage", "Trigger", "Weapon" }, section[AIMBOT]); break;
-	case ANTIAIM: tabs({ "Global", "Stand", "Move", "Fakelag" }, section[ANTIAIM]); break;
-	case VISUALS: tabs({ "ESP", "Chams", "Local", "World" }, section[VISUALS]); break;
-	case MOVEMENT: tabs({ "Main", "Strafes", "Bugs" }, section[MOVEMENT]); break;
-	case MISC: tabs({ "Exploits", "Automation", "Knifebot", "Other", "Theme" }, section[MISC]); break;
+	case AIMBOT: tabs({ "Legit", "Rage", "Trigger", "Weapon profiles" }, section[AIMBOT]); break;
+	case ANTIAIM: tabs({ "Main", "Standing", "Moving", "Fake lag" }, section[ANTIAIM]); break;
+	case VISUALS: tabs({ "Players", "Chams", "Local", "World" }, section[VISUALS]); break;
+	case MOVEMENT: tabs({ "Main", "Auto strafe", "Bugs" }, section[MOVEMENT]); break;
+	case MISC: tabs({ "Exploits", "Automation", "Knifebot", "Utilities", "Theme" }, section[MISC]); break;
 	case CONFIGS: tabs({ "Configurations", "Binds" }, section[CONFIGS]); break;
 	case CONSOLE: tabs({ "Console" }, section[CONSOLE]); break;
 	}
@@ -196,21 +262,25 @@ void CMenu::Draw()
 
 	ImGui::SetCursorPos(ImVec2(153.f, 70.f));
 	ImGui::BeginChild("##prim_content", ImVec2(content_w, content_h), false);
+	panel_begin_page(m_iSelectedTab * 16 + section[m_iSelectedTab]);
 
 	if (m_iSelectedTab == AIMBOT)
 	{
 		if (section[AIMBOT] == 0)
 		{
 			float ya = a.y;
-			panel("Primary", ImVec2(a.x, ya), ImVec2(col3_w, 275.f), [&]()
+			panel("Primary", ImVec2(a.x, ya), ImVec2(col3_w, 155.f), [&]()
 			{
 				components::checkbox("Enabled", &cvars::legitbot.active, &cvars::legitbot.aim_key);
-				components::keybind("Aim key", &cvars::legitbot.aim_key);
-				components::keybind("Silent key", &cvars::legitbot.aim_psilent_key);
-				components::checkbox("Friendly fire", &cvars::legitbot.friendly_fire);
-				components::checkbox("Automatic scope", &cvars::legitbot.aim_auto_scope);
-				components::checkbox("Smoke check", &cvars::legitbot.aim_smoke_check);
-				components::checkbox("Dynamic FOV", &cvars::legitbot.aim_dynamic_fov);
+				if (cvars::legitbot.active)
+				{
+					components::keybind("Aim key", &cvars::legitbot.aim_key);
+					components::keybind("Silent key", &cvars::legitbot.aim_psilent_key);
+					components::checkbox("Friendly fire", &cvars::legitbot.friendly_fire);
+					components::checkbox("Automatic scope", &cvars::legitbot.aim_auto_scope);
+					components::checkbox("Smoke check", &cvars::legitbot.aim_smoke_check);
+					components::checkbox("Dynamic FOV", &cvars::legitbot.aim_dynamic_fov);
+				}
 			});
 			panel("Recoil", ImVec2(a.x + col3_w + 10.f, ya), ImVec2(col3_w, 245.f), [&]()
 			{
@@ -233,15 +303,18 @@ void CMenu::Draw()
 				components::checkbox("FOV scale by FPS", &cvars::legitbot.aim_fov_scale_by_fps);
 				components::checkbox("Smooth independence FPS", &cvars::legitbot.aim_smooth_independence_fps);
 			});
-			panel("Humanizer", ImVec2(a.x, 285.f), ImVec2(col3_w, 215.f), [&]()
+			panel("Humanizer", ImVec2(a.x, 165.f), ImVec2(col3_w, 205.f), [&]()
 			{
 				components::checkbox("Humanizer", &cvars::legitbot.humanizer);
-				components::slider_int("Reaction min", &cvars::legitbot.humanizer_reaction_min, 0, 1000, "%d", "ms");
-				components::slider_int("Reaction max", &cvars::legitbot.humanizer_reaction_max, 0, 1000, "%d", "ms");
-				components::slider_int("Jitter", &cvars::legitbot.humanizer_jitter, 0, 100, "%d", "");
-				components::slider_int("Curve", &cvars::legitbot.humanizer_curve, 1, 200, "%d", "");
+				if (cvars::legitbot.humanizer)
+				{
+					components::slider_int("Reaction minimum", &cvars::legitbot.humanizer_reaction_min, 0, 1000, "%d", "ms");
+					components::slider_int("Reaction maximum", &cvars::legitbot.humanizer_reaction_max, 0, 1000, "%d", "ms");
+					components::slider_int("Jitter", &cvars::legitbot.humanizer_jitter, 0, 100, "%d", "");
+					components::slider_int("Curve", &cvars::legitbot.humanizer_curve, 1, 200, "%d", "");
+				}
 			});
-			panel("Target Weights", ImVec2(a.x + col3_w + 10.f, 255.f), ImVec2(col3_w, 245.f), [&]()
+			panel("Target Weights", ImVec2(a.x + col3_w + 10.f, 255.f), ImVec2(col3_w, -1.f), [&]()
 			{
 				components::slider_int("Head weight", &cvars::legitbot.target_weight_head, 1, 100, "%d", "%");
 				components::slider_int("Neck weight", &cvars::legitbot.target_weight_neck, 1, 100, "%d", "%");
@@ -250,7 +323,7 @@ void CMenu::Draw()
 				components::slider_int("Arms weight", &cvars::legitbot.target_weight_arms, 1, 100, "%d", "%");
 				components::slider_int("Legs weight", &cvars::legitbot.target_weight_legs, 1, 100, "%d", "%");
 			});
-			panel("Targeting", ImVec2(a.x + (col3_w + 10.f) * 2.f, 350.f), ImVec2(col3_w, 125.f), [&]()
+			panel("Targeting", ImVec2(a.x + (col3_w + 10.f) * 2.f, 350.f), ImVec2(col3_w, -1.f), [&]()
 			{
 				const char* sel[] = { "Closest FOV", "Hitbox weight" };
 				components::combo("Aim selection", &cvars::legitbot.target_aim_selection, sel, IM_ARRAYSIZE(sel));
@@ -260,17 +333,20 @@ void CMenu::Draw()
 		else if (section[AIMBOT] == 1)
 		{
 			float ya = a.y;
-			panel("Ragebot", ImVec2(a.x, ya), ImVec2(col3_w, 205.f), [&]()
+			panel("General", ImVec2(a.x, ya), ImVec2(col3_w, 205.f), [&]()
 			{
 				components::checkbox("Enabled", &cvars::ragebot.active, &cvars::ragebot.raim_key);
-				components::keybind("Aim key", &cvars::ragebot.raim_key);
-				components::checkbox("Friendly fire", &cvars::ragebot.friendly_fire);
-				components::checkbox("Automatic fire", &cvars::ragebot.raim_auto_fire);
-				components::slider_float("Maximum FOV", &cvars::ragebot.raim_fov, 0.f, 180.f, "%.1f", "°");
+				if (cvars::ragebot.active)
+				{
+					components::keybind("Aim key", &cvars::ragebot.raim_key);
+					components::checkbox("Friendly fire", &cvars::ragebot.friendly_fire);
+					components::checkbox("Automatic fire", &cvars::ragebot.raim_auto_fire);
+					components::slider_float("Maximum FOV", &cvars::ragebot.raim_fov, 0.f, 180.f, "%.1f", "°");
+				}
 			});
-			panel("Accuracy", ImVec2(a.x + col3_w + 10.f, ya), ImVec2(col3_w, 340.f), [&]()
+			panel("Accuracy and fire", ImVec2(a.x + col3_w + 10.f, ya), ImVec2(col3_w, 340.f), [&]()
 			{
-				const char* type[] = { "Legit AA correction", "Silent", "Teleport" };
+				const char* type[] = { "Legit AA correction", "Silent", "Teleport", "Perfect silent" };
 				components::combo("Aim type", &cvars::ragebot.raim_type, type, IM_ARRAYSIZE(type));
 				components::checkbox("Tapping mode", &cvars::ragebot.raim_tapping_mode);
 				components::keybind("Force damage key", &cvars::ragebot.raim_force_min_damage_key);
@@ -283,7 +359,7 @@ void CMenu::Draw()
 				components::combo("Remove spread", &cvars::ragebot.raim_remove_spread, spread, IM_ARRAYSIZE(spread));
 				components::checkbox("Auto scope", &cvars::ragebot.raim_auto_scope);
 			});
-			panel("Targeting", ImVec2(a.x + (col3_w + 10.f) * 2.f, ya), ImVec2(col3_w, 420.f), [&]()
+			panel("Target priority", ImVec2(a.x + (col3_w + 10.f) * 2.f, ya), ImVec2(col3_w, 420.f), [&]()
 			{
 				const char* tsel[] = { "Highest damage", "Closest by FOV", "Hitbox weights" };
 				components::multi_combo("Selection", cvars::ragebot.raim_target_selection, tsel, IM_ARRAYSIZE(tsel));
@@ -315,9 +391,9 @@ void CMenu::Draw()
 		}
 		else if (section[AIMBOT] == 2)
 		{
-			panel("Triggerbot", a, ImVec2(panel_w, -1.f), [&]()
+			panel("Trigger", a, ImVec2(panel_w, -1.f), [&]()
 			{
-				components::keybind("Trigger key", &cvars::legitbot.trigger_key);
+				components::keybind("Activation key", &cvars::legitbot.trigger_key);
 				components::keybind("Silent key", &cvars::legitbot.aim_psilent_key);
 				components::checkbox("Accurate traces", &cvars::legitbot.trigger_accurate_traces);
 				components::checkbox("Only scoped", &cvars::legitbot.trigger_only_scoped);
@@ -325,7 +401,7 @@ void CMenu::Draw()
 				components::checkbox("Off after first bullet", &cvars::legitbot.trigger_turn_off_after_first_bullet);
 				components::slider_int("Shot delay", &cvars::legitbot.trigger_shot_delay, 0, 1000, "%d", "ms");
 			});
-			panel("Hitbox Scale", b, ImVec2(panel_w, -1.f), [&]()
+			panel("Hitbox scale", b, ImVec2(panel_w, -1.f), [&]()
 			{
 				components::slider_float("Head scale", &cvars::legitbot.trigger_hitbox_scale[0], 0.f, 200.f, "%.0f", "%");
 				components::text(cvars::legitbot.trigger_hitbox_scale[0] > 0.5f ? "Head: ON" : "Head: OFF");
@@ -408,7 +484,9 @@ void CMenu::Draw()
 			});
 			panel("Legit Aim", ImVec2(a.x + col4_w + 10.f, ya), ImVec2(col4_w, 180.f), [&]()
 			{
-				components::checkbox("Aim enabled", &W.aim_enabled);
+				// Legit and rage Aimbot() both run on the same usercmd (CL_CreateMove), so a weapon uses one of them.
+				if (components::checkbox("Aim enabled", &W.aim_enabled) && W.aim_enabled)
+					W.raim_enabled = false;
 				const char* hb[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs" };
 				components::multi_combo("Hitboxes", W.aim_hitboxes, hb, IM_ARRAYSIZE(hb));
 				components::slider_float("Aim FOV", &W.aim_fov, 0.f, 30.f, "%.1f", "°");
@@ -444,11 +522,12 @@ void CMenu::Draw()
 			});
 			panel("Rage", ImVec2(a.x + (col4_w + 10.f) * 3.f, 0.f), ImVec2(col4_w, 275.f), [&]()
 			{
-				components::checkbox("Rage enabled", &W.raim_enabled);
+				if (components::checkbox("Rage enabled", &W.raim_enabled) && W.raim_enabled)
+					W.aim_enabled = false;
 				const char* rhb[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs" };
 				components::multi_combo("Hitboxes", W.raim_hitboxes, rhb, IM_ARRAYSIZE(rhb));
-				components::checkbox("Auto penetration", &W.raim_auto_penetration);
-				components::slider_int("Min damage", &W.raim_auto_penetration_min_damage, 1, 100, "%d", "hp");
+				components::checkbox("Rage penetration", &W.raim_auto_penetration);
+				components::slider_int("Rage min damage", &W.raim_auto_penetration_min_damage, 1, 100, "%d", "hp");
 				components::slider_int("Force damage", &W.raim_force_min_damage, 1, 100, "%d", "hp");
 				const char* ast[] = { "Off", "Auto", "Fast", "Early" };
 				components::combo("Autostop", &W.raim_autostop, ast, IM_ARRAYSIZE(ast));
@@ -459,13 +538,13 @@ void CMenu::Draw()
 				const char* thb[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs" };
 				components::multi_combo("Hitboxes", W.trigger_hitboxes, thb, IM_ARRAYSIZE(thb));
 				components::slider_int("Accuracy boost", &W.trigger_accuracy_boost, 0, 5, "%d", "");
-				components::checkbox("Auto penetration", &W.trigger_auto_penetration);
-				components::slider_int("Min damage", &W.trigger_auto_penetration_min_damage, 1, 100, "%d", "hp");
+				components::checkbox("Trigger penetration", &W.trigger_auto_penetration);
+				components::slider_int("Trigger min damage", &W.trigger_auto_penetration_min_damage, 1, 100, "%d", "hp");
 			});
 			panel("Penetration", ImVec2(a.x + col4_w + 10.f, 380.f), ImVec2(col4_w, 120.f), [&]()
 			{
-				components::checkbox("Auto penetration", &W.aim_auto_penetration);
-				components::slider_int("Min damage", &W.aim_auto_penetration_min_damage, 1, 100, "%d", "hp");
+				components::checkbox("Legit penetration", &W.aim_auto_penetration);
+				components::slider_int("Legit min damage", &W.aim_auto_penetration_min_damage, 1, 100, "%d", "hp");
 			});
 			panel("Automatic", ImVec2(a.x, 380.f), ImVec2(col4_w, 120.f), [&]()
 			{
@@ -493,57 +572,75 @@ void CMenu::Draw()
 	{
 		if (section[ANTIAIM] == 0)
 		{
-			panel("Anti-aim", a, ImVec2(panel_w, -1.f), [&]()
+			panel("General", a, ImVec2(panel_w, -1.f), [&]()
 			{
-				const char* at[] = { "Off", "Yaw to closest", "Yaw to firepower" };
-				const char* cond[] = { "On attack", "While nade", "Freeze time" };
+				const char* at[] = { "Off", "Closest enemy", "Average enemy direction" };
+				const char* cond[] = { "Knives", "Grenades", "Outside freeze time" };
 				components::checkbox("Enabled", &cvars::ragebot.aa_enabled);
 				components::checkbox("Teammates", &cvars::ragebot.aa_teammates);
-				components::combo("At targets", &cvars::ragebot.aa_at_targets, at, IM_ARRAYSIZE(at));
+				components::combo("Target reference", &cvars::ragebot.aa_at_targets, at, IM_ARRAYSIZE(at));
 				components::multi_combo("Conditions", cvars::ragebot.aa_conditions, cond, IM_ARRAYSIZE(cond));
-				components::checkbox("Untrusted checks", &cvars::ragebot.aa_untrusted_checks);
+				components::checkbox("Safe angles", &cvars::ragebot.aa_untrusted_checks);
 			});
-			panel("Side & Roll", b, ImVec2(panel_w, -1.f), [&]()
+			panel("Side and actions", b, ImVec2(panel_w, -1.f), [&]()
 			{
 				const char* roll[] = { "None", "Sideways 50", "Sideways 90", "Sideways 180", "Static" };
-				const char* side[] = { "Off", "Manual left", "Manual right" };
-				const char* fsmode[] = { "Always", "On key", "Key or no bind" };
+				const char* side[] = { "Left", "Right" };
+				const char* fsmode[] = { "Always", "Hold key", "Key or no bind" };
 				components::combo("Side", &cvars::ragebot.aa_side, side, IM_ARRAYSIZE(side));
-				components::keybind("Side key", &cvars::ragebot.aa_side_key);
+				components::keybind("Side override", &cvars::ragebot.aa_side_key);
 				components::checkbox("Switch when take damage", &cvars::ragebot.aa_side_switch_when_take_damage);
 				components::checkbox("Freestanding", &cvars::ragebot.aa_freestanding);
-				components::combo("Freestanding mode", &cvars::ragebot.aa_freestanding_mode, fsmode, IM_ARRAYSIZE(fsmode));
-				components::keybind("Freestanding key", &cvars::ragebot.aa_freestanding_key);
-				components::slider_float("Freestanding dist", &cvars::ragebot.aa_freestanding_distance, 8.f, 256.f, "%.0f", "units");
+				if (cvars::ragebot.aa_freestanding)
+				{
+					components::combo("Freestanding mode", &cvars::ragebot.aa_freestanding_mode, fsmode, IM_ARRAYSIZE(fsmode));
+					components::keybind("Freestanding key", &cvars::ragebot.aa_freestanding_key);
+					components::slider_float("Trace distance", &cvars::ragebot.aa_freestanding_distance, 8.f, 256.f, "%.0f", "units");
+				}
 				components::checkbox("On shot", &cvars::ragebot.aa_on_shot);
-				components::slider_float("On shot time", &cvars::ragebot.aa_on_shot_time, 0.05f, 1.f, "%.2f", "s");
+				if (cvars::ragebot.aa_on_shot)
+					components::slider_float("On shot time", &cvars::ragebot.aa_on_shot_time, 0.05f, 1.f, "%.2f", "s");
 				components::checkbox("Fake duck", &cvars::ragebot.fake_duck);
-				components::keybind("Fake duck key", &cvars::ragebot.fake_duck_key);
-				components::slider_int("Fake duck choke", &cvars::ragebot.fake_duck_choke, 1, 12, "%d", "ticks");
+				if (cvars::ragebot.fake_duck)
+				{
+					components::keybind("Fake duck key", &cvars::ragebot.fake_duck_key);
+					components::slider_int("Fake duck choke", &cvars::ragebot.fake_duck_choke, 1, 12, "%d", "ticks");
+				}
 				components::combo("Roll", &cvars::ragebot.aa_roll, roll, IM_ARRAYSIZE(roll));
-				components::slider_float("Static roll", &cvars::ragebot.aa_roll_static, -180.f, 180.f, "%.1f", "°");
+				if (cvars::ragebot.aa_roll == 4)
+					components::slider_float("Static roll", &cvars::ragebot.aa_roll_static, -180.f, 180.f, "%.1f", "°");
 			});
 		}
 		else if (section[ANTIAIM] == 1)
 		{
-			panel("Stand Angles", a, ImVec2(panel_w, -1.f), [&]()
+			panel("Angles", a, ImVec2(panel_w, -1.f), [&]()
 			{
-				const char* pitch[] = { "None", "Down", "Up", "Fake down", "Fake up", "Jitter", "Fake jitter" };
-				const char* yaw[] = { "None", "Backwards", "Sideways 90", "Sideways 140", "Static", "Local view", "Desync" };
+				const char* pitch[] = { "None", "Down", "Up", "Fake down", "Fake up", "Jitter", "Fake jitter", "Jitter zero", "Zero", "Exploit 180", "Exploit -180" };
+				const char* yaw[] = { "None", "Backwards", "Sideways 90", "Sideways 140", "Static", "Local view", "Desync", "Send backwards", "Send jitter" };
 				components::combo("Pitch", &cvars::ragebot.aa_stand_pitch, pitch, IM_ARRAYSIZE(pitch));
+				components::checkbox("Fake pitch", &cvars::ragebot.aa_stand_fake_pitch);
 				components::combo("Yaw", &cvars::ragebot.aa_stand_yaw, yaw, IM_ARRAYSIZE(yaw));
-				components::slider_float("Static yaw", &cvars::ragebot.aa_stand_yaw_static, -180.f, 180.f, "%.1f", "°");
+				if (cvars::ragebot.aa_stand_yaw == 4)
+					components::slider_float("Static yaw", &cvars::ragebot.aa_stand_yaw_static, -180.f, 180.f, "%.1f", "°");
 			});
-			panel("Desync", b, ImVec2(panel_w, -1.f), [&]()
+			panel("Variation and desync", b, ImVec2(panel_w, -1.f), [&]()
 			{
-				components::slider_int("Desync", &cvars::ragebot.aa_stand_desync, 0, 100, "%d", "%");
+				components::checkbox("Yaw jitter", &cvars::ragebot.aa_stand_jitter);
+				components::checkbox("Spin", &cvars::ragebot.aa_stand_spin);
+				if (cvars::ragebot.aa_stand_spin)
+					components::slider_float("Spin speed", &cvars::ragebot.aa_stand_spin_speed, 45.f, 1440.f, "%.0f", "°/s");
+				components::checkbox("Random yaw", &cvars::ragebot.aa_stand_random_yaw);
+				if (cvars::ragebot.aa_stand_random_yaw)
+					components::slider_float("Random range", &cvars::ragebot.aa_stand_random_range, 1.f, 180.f, "%.0f", "°");
+				const char* desync[] = { "Off", "Low", "High" };
+				components::combo("Desync", &cvars::ragebot.aa_stand_desync, desync, IM_ARRAYSIZE(desync));
 				components::checkbox("Desync helper", &cvars::ragebot.aa_stand_desync_helper);
-				components::text("Yaw: %s", cvars::ragebot.aa_stand_yaw == 0 ? "None" : "Custom");
+				components::checkbox("Fake-lag desync", &cvars::ragebot.aa_fakelag_desync);
 			});
 		}
 		else if (section[ANTIAIM] == 2)
 		{
-			panel("Movement Angles", a, ImVec2(content_w, -1.f), [&]()
+			panel("Moving angles", a, ImVec2(content_w, -1.f), [&]()
 			{
 				const char* pitch[] = { "None", "Down", "Up", "Fake down", "Fake up", "Jitter", "Fake jitter" };
 				const char* yaw[] = { "None", "Backwards", "Local view", "Gait sideways" };
@@ -556,14 +653,14 @@ void CMenu::Draw()
 			panel("Fakelag", a, ImVec2(content_w, -1.f), [&]()
 			{
 				const char* type[] = { "Maximum", "Break lag compensation" };
-				const char* trig[] = { "Standing", "In air" };
+				const char* trig[] = { "On ground", "In air" };
 				components::checkbox("Enabled", &cvars::ragebot.fakelag_enabled);
 				components::combo("Type", &cvars::ragebot.fakelag_type, type, IM_ARRAYSIZE(type));
 				components::slider_int("Choke limit", &cvars::ragebot.fakelag_choke_limit, 1, MAX_TOTAL_CMDS, "%d", "ticks");
 				components::multi_combo("Triggers", cvars::ragebot.fakelag_triggers, trig, IM_ARRAYSIZE(trig));
 				components::checkbox("While shooting", &cvars::ragebot.fakelag_while_shooting);
-				components::checkbox("On enemy in pvs", &cvars::ragebot.fakelag_on_enemy_in_pvs);
-				components::checkbox("On peek", &cvars::ragebot.fakelag_on_peek);
+				components::checkbox("Only with enemy in PVS", &cvars::ragebot.fakelag_on_enemy_in_pvs);
+				components::checkbox("Only while peeking", &cvars::ragebot.fakelag_on_peek);
 			});
 		}
 	}
@@ -571,14 +668,8 @@ void CMenu::Draw()
 	{
 		if (section[VISUALS] == 0)
 		{
-			panel("Player ESP", a, ImVec2(panel_w, -1.f), [&]()
+			panel("ESP general", a, ImVec2(panel_w, 225.f), [&]()
 			{
-				const char* pos[] = { "Off", "Left", "Right", "Top", "Bottom" };
-				const char* poslr[] = { "Off", "Left", "Right" };
-				const char* box[] = { "Off", "Default", "Corner", "Round" };
-				const char* meas[] = { "Units", "Meters" };
-				const char* hitb[] = { "Off", "Visible", "All" };
-				const char* pl[] = { "Local", "Enemies", "Teammates" };
 				components::checkbox("Enabled", &cvars::visuals.active);
 				components::keybind("Panic key", &cvars::visuals.panic_key);
 				components::slider_float("Dormant time", &cvars::visuals.esp_dormant_time, 0.f, 10.f, "%.1f", "s");
@@ -586,13 +677,27 @@ void CMenu::Draw()
 				components::checkbox("Update by sound", &cvars::visuals.esp_dormant_update_by_sound);
 				components::checkbox("Interpolate history", &cvars::visuals.esp_interpolate_history);
 				components::slider_int("Font", &cvars::visuals.esp_font_size, 8, 24, "%d", "px");
+			});
+			panel("Player overlay", ImVec2(a.x, 235.f), ImVec2(panel_w, -1.f), [&]()
+			{
+				const char* pos[] = { "Off", "Left", "Right", "Top", "Bottom" };
+				const char* poslr[] = { "Off", "Left", "Right" };
+				const char* box[] = { "Off", "Default", "Corner", "Round" };
+				const char* meas[] = { "Units", "Meters" };
+				const char* hitb[] = { "Off", "Visible", "All" };
+				const char* pl[] = { "Local", "Enemies", "Teammates" };
 				components::checkbox("Player ESP", &cvars::visuals.esp_player);
+				if (!cvars::visuals.esp_player)
+					return;
 				components::multi_combo("Players", cvars::visuals.esp_player_players, pl, IM_ARRAYSIZE(pl));
 				components::combo("Box", &cvars::visuals.esp_player_box, box, IM_ARRAYSIZE(box));
-				components::slider_int("Box filled", &cvars::visuals.esp_player_box_filled, 0, 100, "%d", "%");
-				components::checkbox("Box outline", &cvars::visuals.esp_player_box_outline);
-				components::color_edit("Box T", cvars::visuals.esp_player_box_color_t);
-				components::color_edit("Box CT", cvars::visuals.esp_player_box_color_ct);
+				if (cvars::visuals.esp_player_box)
+				{
+					components::slider_int("Box filled", &cvars::visuals.esp_player_box_filled, 0, 100, "%d", "%");
+					components::checkbox("Box outline", &cvars::visuals.esp_player_box_outline);
+					components::color_edit("T box", cvars::visuals.esp_player_box_color_t);
+					components::color_edit("CT box", cvars::visuals.esp_player_box_color_ct);
+				}
 				components::combo("Health", &cvars::visuals.esp_player_health, pos, IM_ARRAYSIZE(pos));
 				components::checkbox("Health percentage", &cvars::visuals.esp_player_health_percentage);
 				components::color_edit("Health percentage", cvars::visuals.esp_player_health_percentage_color);
@@ -634,6 +739,8 @@ void CMenu::Draw()
 			{
 				const char* pl[] = { "Local", "Enemies", "Teammates" };
 				components::checkbox("Glow", &cvars::visuals.esp_player_glow);
+				if (!cvars::visuals.esp_player_glow)
+					return;
 				components::multi_combo("Players", cvars::visuals.esp_player_glow_players, pl, IM_ARRAYSIZE(pl));
 				components::slider_int("Amount", &cvars::visuals.esp_player_glow_amount, 0, 255, "%d", "");
 				components::checkbox("Health based", &cvars::visuals.esp_player_glow_color_health_based);
@@ -644,6 +751,8 @@ void CMenu::Draw()
 			{
 				const char* pl[] = { "Local", "Enemies", "Teammates" };
 				components::checkbox("Sounds", &cvars::visuals.esp_player_sounds);
+				if (!cvars::visuals.esp_player_sounds)
+					return;
 				components::multi_combo("Players", cvars::visuals.esp_player_sounds_players, pl, IM_ARRAYSIZE(pl));
 				components::slider_float("Time", &cvars::visuals.esp_player_sounds_time, 0.f, 5.f, "%.1f", "s");
 				components::slider_float("Circle radius", &cvars::visuals.esp_player_sounds_circle_radius, 0.f, 100.f, "%.0f", "units");
@@ -656,6 +765,8 @@ void CMenu::Draw()
 				const char* pl[] = { "Enemies", "Teammates" };
 				const char* info[] = { "Name", "Weapon", "Distance" };
 				components::checkbox("Out of FOV", &cvars::visuals.esp_player_out_of_fov);
+				if (!cvars::visuals.esp_player_out_of_fov)
+					return;
 				components::combo("Draw type", &cvars::visuals.esp_player_out_of_fov_draw_type, dt, IM_ARRAYSIZE(dt));
 				components::multi_combo("Players", cvars::visuals.esp_player_out_of_fov_players, pl, IM_ARRAYSIZE(pl));
 				components::multi_combo("Additional info", cvars::visuals.esp_player_out_of_fov_additional_info, info, IM_ARRAYSIZE(info));
@@ -746,7 +857,7 @@ void CMenu::Draw()
 		}
 		else if (section[VISUALS] == 2)
 		{
-			panel("Local ESP", a, ImVec2(col3_w, 305.f), [&]()
+			panel("Local overlay", a, ImVec2(col3_w, 305.f), [&]()
 			{
 				const char* wm[] = { "Time", "Name", "FPS", "Latency", "E4", "E5", "E6", "E7" };
 				components::checkbox("Toggle status", &cvars::visuals.esp_other_local_toggle_status);
@@ -767,18 +878,24 @@ void CMenu::Draw()
 				components::multi_combo("Elements", cvars::visuals.indicators_elements, indelem, IM_ARRAYSIZE(indelem));
 				components::color_edit("Indicators", cvars::visuals.indicators_color);
 			});
-			panel("Hit Feedback", ImVec2(a.x + col3_w + 10.f, 0.f), ImVec2(col3_w, 340.f), [&]()
+			panel("Hit feedback", ImVec2(a.x + col3_w + 10.f, 0.f), ImVec2(col3_w, 340.f), [&]()
 			{
 				const char* hsnd[] = { "Blip 1", "Blip 2", "Bullet hit", "Pain" };
 				components::checkbox("Hitsound", &cvars::visuals.hitsound);
-				components::combo("Sound", &cvars::visuals.hitsound_type, hsnd, IM_ARRAYSIZE(hsnd));
-				components::slider_float("Volume", &cvars::visuals.hitsound_volume, 0.f, 1.f, "%.2f", "");
-				components::slider_int("HS pitch", &cvars::visuals.hitsound_headshot_pitch, 50, 200, "%d", "");
+				if (cvars::visuals.hitsound)
+				{
+					components::combo("Sound", &cvars::visuals.hitsound_type, hsnd, IM_ARRAYSIZE(hsnd));
+					components::slider_float("Volume", &cvars::visuals.hitsound_volume, 0.f, 1.f, "%.2f", "");
+					components::slider_int("Headshot pitch", &cvars::visuals.hitsound_headshot_pitch, 50, 200, "%d", "");
+				}
 				components::checkbox("Hitmarker", &cvars::visuals.hitmarker);
-				components::slider_float("Hitmarker time", &cvars::visuals.hitmarker_time, 0.1f, 2.f, "%.1f", "s");
-				components::slider_float("Hitmarker size", &cvars::visuals.hitmarker_size, 2.f, 24.f, "%.0f", "px");
-				components::color_edit("Hitmarker", cvars::visuals.hitmarker_color);
-				components::color_edit("Hitmarker HS", cvars::visuals.hitmarker_headshot_color);
+				if (cvars::visuals.hitmarker)
+				{
+					components::slider_float("Hitmarker time", &cvars::visuals.hitmarker_time, 0.1f, 2.f, "%.1f", "s");
+					components::slider_float("Hitmarker size", &cvars::visuals.hitmarker_size, 2.f, 24.f, "%.0f", "px");
+					components::color_edit("Hitmarker", cvars::visuals.hitmarker_color);
+					components::color_edit("Headshot marker", cvars::visuals.hitmarker_headshot_color);
+				}
 			});
 			panel("Damage Log", ImVec2(a.x + (col3_w + 10.f) * 2.f, 0.f), ImVec2(col3_w, 215.f), [&]()
 			{
@@ -828,37 +945,117 @@ void CMenu::Draw()
 	{
 		if (section[MOVEMENT] == 0)
 		{
-			panel("Main Movement", a, ImVec2(panel_w, -1.f), [&]()
+			panel("Main Movement", a, ImVec2(panel_w, 180.f), [&]()
 			{
 				components::checkbox("Enabled", &cvars::kreedz.active, &cvars::kreedz.key);
 				components::keybind("Key", &cvars::kreedz.key);
 				components::checkbox("Bunnyhop", &cvars::kreedz.bunnyhop);
-				components::checkbox("Ground strafe", &cvars::kreedz.groundstrafe);
-				components::slider_float("Ground gain", &cvars::kreedz.groundstrafe_gain, 0.f, 1.f, "%.2f");
+				if (cvars::kreedz.bunnyhop)
+					components::checkbox("No landing slowdown", &cvars::kreedz.bunnyhop_no_slowdown);
+				components::checkbox("DDRun", &cvars::kreedz.ddrun, &cvars::kreedz.ddrun_key);
+				if (cvars::kreedz.ddrun)
+					components::keybind("DDRun key", &cvars::kreedz.ddrun_key);
 			});
-			panel("Speed", b, ImVec2(panel_w, -1.f), [&]()
+			panel("Ground strafe", b, ImVec2(panel_w, -1.f), [&]()
+			{
+				components::checkbox("Ground strafe", &cvars::kreedz.groundstrafe);
+				if (cvars::kreedz.groundstrafe)
+				{
+					const char* gsm[] = { "Legit", "Rage" };
+					components::combo("Mode", &cvars::kreedz.gs_mode, gsm, IM_ARRAYSIZE(gsm));
+					components::checkbox("No slowdown", &cvars::kreedz.gs_noslowdown);
+					if (cvars::kreedz.gs_noslowdown)
+					{
+						components::slider_int("Factor", &cvars::kreedz.gs_noslowdown_factor, 1, 10, "%d");
+						components::slider_float("Minimum distance", &cvars::kreedz.gs_min_dist, 1.f, 20.f, "%.0f", "u");
+						components::slider_float("Maximum distance", &cvars::kreedz.gs_max_dist, 2.f, 32.f, "%.0f", "u");
+					}
+				}
+			});
+			panel("Speed", ImVec2(a.x, 190.f), ImVec2(panel_w, 190.f), [&]()
 			{
 				components::checkbox("Fast run", &cvars::kreedz.fastrun, &cvars::kreedz.fastrun_key);
-				components::keybind("Fast run key", &cvars::kreedz.fastrun_key);
+				if (cvars::kreedz.fastrun)
+					components::keybind("Fast run key", &cvars::kreedz.fastrun_key);
 				components::checkbox("Slow walk", &cvars::kreedz.slowwalk, &cvars::kreedz.slowwalk_key);
-				components::keybind("Slow walk key", &cvars::kreedz.slowwalk_key);
-				components::slider_float("Slow walk speed", &cvars::kreedz.slowwalk_speed, 1.f, 320.f, "%.0f", "u/s");
+				if (cvars::kreedz.slowwalk)
+				{
+					components::keybind("Slow walk key", &cvars::kreedz.slowwalk_key);
+					components::slider_float("Speed", &cvars::kreedz.slowwalk_speed, 1.f, 320.f, "%.0f", "u/s");
+				}
 			});
 		}
 		else if (section[MOVEMENT] == 1)
 		{
-			panel("Strafes & Helpers", a, ImVec2(panel_w, -1.f), [&]()
+			panel("Strafes & Helpers", a, ImVec2(panel_w, 180.f), [&]()
 			{
-				components::checkbox("Rage strafe", &cvars::kreedz.rage_strafe);
-				components::checkbox("Legit strafe", &cvars::kreedz.legit_strafe);
-				components::slider_float("Legit speed", &cvars::kreedz.legit_strafe_speed, 1.f, 100.f, "%.1f", "%");
+				if (components::checkbox("GoldSrc ideal", &cvars::kreedz.strafe_ideal) && cvars::kreedz.strafe_ideal)
+				{
+					cvars::kreedz.doppler_strafe = false;
+					cvars::kreedz.rage_strafe = false;
+					cvars::kreedz.legit_strafe = false;
+				}
+				if (cvars::kreedz.strafe_ideal)
+					components::keybind("GoldSrc key", &cvars::kreedz.strafe_ideal_key);
+				if (components::checkbox("Rage strafe", &cvars::kreedz.rage_strafe) && cvars::kreedz.rage_strafe)
+				{
+					cvars::kreedz.strafe_ideal = false;
+					cvars::kreedz.doppler_strafe = false;
+					cvars::kreedz.legit_strafe = false;
+				}
+				if (cvars::kreedz.rage_strafe)
+					components::keybind("Rage key", &cvars::kreedz.rage_strafe_key);
+				if (components::checkbox("Legit strafe", &cvars::kreedz.legit_strafe) && cvars::kreedz.legit_strafe)
+				{
+					cvars::kreedz.strafe_ideal = false;
+					cvars::kreedz.doppler_strafe = false;
+					cvars::kreedz.rage_strafe = false;
+				}
+				if (cvars::kreedz.legit_strafe)
+				{
+					components::keybind("Legit key", &cvars::kreedz.legit_strafe_key);
+					components::slider_float("Legit speed", &cvars::kreedz.legit_strafe_speed, 1.f, 100.f, "%.1f", "%");
+				}
 			});
-			panel("DeGen", b, ImVec2(panel_w, -1.f), [&]()
+			panel("Doppler Strafe", b, ImVec2(panel_w, 230.f), [&]()
+			{
+				if (components::checkbox("Enabled", &cvars::kreedz.doppler_strafe) && cvars::kreedz.doppler_strafe)
+				{
+					cvars::kreedz.strafe_ideal = false;
+					cvars::kreedz.rage_strafe = false;
+					cvars::kreedz.legit_strafe = false;
+				}
+				if (cvars::kreedz.doppler_strafe)
+				{
+					components::keybind("Doppler key", &cvars::kreedz.doppler_strafe_key);
+					const char* dmode[] = { "Air", "Ground", "Both" };
+					components::combo("Mode", &cvars::kreedz.doppler_mode, dmode, IM_ARRAYSIZE(dmode));
+					components::slider_float("Move magnitude", &cvars::kreedz.doppler_move, 200.f, 400.f, "%.0f");
+					components::checkbox("Auto jump", &cvars::kreedz.doppler_auto_jump);
+					components::checkbox("Limit velocity", &cvars::kreedz.doppler_limit_velocity);
+					if (cvars::kreedz.doppler_limit_velocity)
+						components::slider_int("Maximum speed", &cvars::kreedz.doppler_max_speed, 500, 10000, "%d", "u/s");
+				}
+			});
+			panel("Ladder Strafe", ImVec2(a.x, 190.f), ImVec2(panel_w, 175.f), [&]()
+			{
+				components::checkbox("Enabled", &cvars::kreedz.ladder_strafe);
+				if (cvars::kreedz.ladder_strafe)
+				{
+					components::keybind("Ladder key", &cvars::kreedz.ladder_strafe_key);
+					components::slider_int("Jump off speed", &cvars::kreedz.ladder_max_speed, 250, 600, "%d", "u/s");
+					components::slider_float("Move magnitude", &cvars::kreedz.ladder_move, 200.f, 400.f, "%.0f");
+				}
+			});
+			panel("DeGen", ImVec2(b.x, 240.f), ImVec2(panel_w, 175.f), [&]()
 			{
 				components::checkbox("DeGen", &cvars::kreedz.degen, &cvars::kreedz.degen_key);
-				components::keybind("DeGen key", &cvars::kreedz.degen_key);
-				components::slider_float("DeGen power", &cvars::kreedz.degen_power, 50.f, 1000.f, "%.0f");
-components::slider_float("DeGen tilt", &cvars::kreedz.degen_tilt, -0.9f, 0.9f, "%.2f");
+				if (cvars::kreedz.degen)
+				{
+					components::keybind("Key", &cvars::kreedz.degen_key);
+					components::slider_float("Power", &cvars::kreedz.degen_power, 50.f, 1000.f, "%.0f");
+					components::slider_float("Tilt", &cvars::kreedz.degen_tilt, -0.9f, 0.9f, "%.2f");
+				}
 			});
 		}
 		else
@@ -869,13 +1066,17 @@ components::slider_float("DeGen tilt", &cvars::kreedz.degen_tilt, -0.9f, 0.9f, "
 				components::checkbox("Edge bug", &cvars::kreedz.edgebug);
 				components::checkbox("Wall bug", &cvars::kreedz.wallbug);
 				components::checkbox("Auto jump of fall", &cvars::kreedz.auto_jof);
-				components::slider_float("JOF distance", &cvars::kreedz.auto_jof_min_distance, 1.f, 16.f, "%.1f", "units");
+				if (cvars::kreedz.auto_jof)
+					components::slider_float("Fall distance", &cvars::kreedz.auto_jof_min_distance, 1.f, 16.f, "%.1f", "units");
 			});
 			panel("Edge Jump", b, ImVec2(panel_w, -1.f), [&]()
 			{
 				components::checkbox("Edge jump", &cvars::kreedz.edgejump, &cvars::kreedz.edgejump_key);
-				components::keybind("Edge jump key", &cvars::kreedz.edgejump_key);
-				components::slider_float("Edge distance", &cvars::kreedz.edgejump_distance, 1.f, 64.f, "%.1f", "units");
+				if (cvars::kreedz.edgejump)
+				{
+					components::keybind("Key", &cvars::kreedz.edgejump_key);
+					components::slider_float("Trace distance", &cvars::kreedz.edgejump_distance, 1.f, 64.f, "%.1f", "units");
+				}
 			});
 		}
 	}
@@ -883,43 +1084,96 @@ components::slider_float("DeGen tilt", &cvars::kreedz.degen_tilt, -0.9f, 0.9f, "
 	{
 		if (section[MISC] == 0)
 		{
-			panel("Exploits", a, ImVec2(panel_w, -1.f), [&]()
+			panel("Command shift", a, ImVec2(panel_w, 210.f), [&]()
 			{
 				components::checkbox("Doubletap", &cvars::misc.doubletap, &cvars::misc.doubletap_key);
-				components::keybind("Doubletap key", &cvars::misc.doubletap_key);
-				components::slider_int("Doubletap shift", &cvars::misc.doubletap_shift, 1, 4, "%d", "ticks");
+				if (cvars::misc.doubletap)
+				{
+					components::keybind("Doubletap key", &cvars::misc.doubletap_key);
+					components::slider_int("Shift", &cvars::misc.doubletap_shift, 1, 4, "%d", "ticks");
+				}
 				components::checkbox("Airstuck", &cvars::misc.airstuck, &cvars::misc.airstuck_key);
-				components::keybind("Airstuck key", &cvars::misc.airstuck_key);
-				components::checkbox("Name stealer", &cvars::misc.namestealer);
-				components::slider_int("Name interval", &cvars::misc.namestealer_interval, 1, 3600, "%d", "s");
+				if (cvars::misc.airstuck)
+					components::keybind("Airstuck key", &cvars::misc.airstuck_key);
+				components::checkbox("Duck hull", &cvars::misc.duck_hull, &cvars::misc.duck_hull_key);
+				if (cvars::misc.duck_hull)
+					components::keybind("Duck hull key", &cvars::misc.duck_hull_key);
+				components::checkbox("Jitter desync", &cvars::misc.aa_jitter_desync);
 			});
-			panel("Fake latency", b, ImVec2(panel_w, -1.f), [&]()
+			panel("Time bank", b, ImVec2(panel_w, -1.f), [&]()
 			{
-				components::checkbox("Fakelatency", &cvars::misc.fakelatency);
-				components::slider_int("Latency", &cvars::misc.fakelatency_amount, 0, 500, "%d", "ms");
-				components::keybind("Fakelatency key", &cvars::misc.fakelatency_key);
-				components::checkbox("Hold key", &cvars::misc.fakelatency_hold);
-				components::separator();
+				components::checkbox("Enabled", &cvars::misc.timebank);
+				if (cvars::misc.timebank)
+				{
+					components::slider_int("Charge command", &cvars::misc.timebank_charge_ms, 1, 20, "%d", "ms");
+					components::slider_int("Release command", &cvars::misc.timebank_release_ms, 20, 255, "%d", "ms");
+					components::slider_int("Release ticks", &cvars::misc.timebank_release_ticks, 1, 10, "%d");
+					components::slider_int("Maximum credit", &cvars::misc.timebank_max_credit_ms, 50, 500, "%d", "ms");
+					components::slider_int("Minimum credit", &cvars::misc.timebank_min_credit, 10, 200, "%d", "ms");
+					components::checkbox("Auto release", &cvars::misc.timebank_auto_release);
+					components::checkbox("Limit release", &cvars::misc.timebank_legit_cap);
+					if (cvars::misc.timebank_legit_cap)
+						components::slider_int("Release limit", &cvars::misc.timebank_legit_multiplier, 100, 150, "%d", "%");
+				}
+			});
+			panel("Fake latency", ImVec2(a.x, 220.f), ImVec2(panel_w, 180.f), [&]()
+			{
+				components::checkbox("Enabled", &cvars::misc.fakelatency);
+				if (cvars::misc.fakelatency)
+				{
+					components::slider_int("Added latency", &cvars::misc.fakelatency_amount, 0, 500, "%d", "ms");
+					components::keybind("Key", &cvars::misc.fakelatency_key);
+					components::checkbox("Hold key", &cvars::misc.fakelatency_hold);
+				}
 				components::checkbox("Predict local", &cvars::misc.predict_local);
-				components::checkbox("Predict players", &cvars::misc.predict_players);
+				components::checkbox("Predict other players", &cvars::misc.predict_players);
+			});
+			panel("Name stealer", ImVec2(a.x, 410.f), ImVec2(panel_w, 100.f), [&]()
+			{
+				components::checkbox("Enabled", &cvars::misc.namestealer);
+				if (cvars::misc.namestealer)
+					components::slider_int("Interval", &cvars::misc.namestealer_interval, 1, 3600, "%d", "s");
 			});
 		}
 		else if (section[MISC] == 1)
 		{
-			panel("Automation", a, ImVec2(content_w, -1.f), [&]()
+			panel("Combat", a, ImVec2(panel_w, -1.f), [&]()
 			{
-				components::checkbox("Automatic reload", &cvars::misc.automatic_reload);
-				components::checkbox("Automatic pistol", &cvars::misc.automatic_pistol);
+				components::checkbox("Auto reload", &cvars::misc.automatic_reload);
+				components::checkbox("Auto pistol", &cvars::misc.automatic_pistol);
 				components::checkbox("No spread", &cvars::misc.nospread);
-				const char* nsm[] = { "Off", "Compensate", "Perfect" };
-				components::combo("Spread mode", &cvars::misc.nospread_mode, nsm, IM_ARRAYSIZE(nsm));
+				if (cvars::misc.nospread)
+				{
+					const char* nsm[] = { "Compensate", "Perfect" };
+					int mode = std::clamp(cvars::misc.nospread_mode, 0, 1);
+					if (components::combo("Mode", &mode, nsm, IM_ARRAYSIZE(nsm)))
+						cvars::misc.nospread_mode = mode;
+				}
+			});
+			panel("Client", b, ImVec2(panel_w, -1.f), [&]()
+			{
 				components::checkbox("Unlock FPS", &cvars::misc.fps_unlock);
+				components::checkbox("FPS boost", &cvars::misc.fps_boost);
+				if (cvars::misc.fps_boost)
+					components::slider_int("FPS limit", &cvars::misc.fps_boost_target, 100, 999, "%d", "fps");
 				components::checkbox("Frame skip", &cvars::misc.frame_skip);
-				components::slider_int("Skip amount", &cvars::misc.frame_skip_amount, 1, 10, "%d", "frames");
-components::checkbox("Developer", &cvars::misc.fps_developer);
+				if (cvars::misc.frame_skip)
+					components::slider_int("Skip amount", &cvars::misc.frame_skip_amount, 1, 10, "%d", "frames");
+				components::checkbox("Developer", &cvars::misc.fps_developer);
 				components::checkbox("Client weapons", &cvars::misc.client_weapons);
-				components::checkbox("Replace models", &cvars::misc.replace_models_with_original);
+				components::checkbox("Original player models", &cvars::misc.replace_models_with_original);
 				components::checkbox("Maximize on respawn", &cvars::misc.maximize_on_respawn);
+				components::checkbox("Render decoupler", &cvars::misc.render_decoupler);
+				if (cvars::misc.render_decoupler)
+				{
+					components::slider_float("Render FPS", &cvars::misc.render_fps, 30.f, 500.f, "%.0f", "fps");
+					components::checkbox("Adaptive render", &cvars::misc.render_adaptive);
+					if (cvars::misc.render_adaptive)
+					{
+						components::slider_float("Target game FPS", &cvars::misc.render_target_game_fps, 200.f, 1000.f, "%.0f", "fps");
+						components::slider_float("Min render FPS", &cvars::misc.render_min_fps, 30.f, 240.f, "%.0f", "fps");
+					}
+				}
 			});
 		}
 		else if (section[MISC] == 2)
@@ -927,47 +1181,66 @@ components::checkbox("Developer", &cvars::misc.fps_developer);
 			panel("Knifebot", a, ImVec2(panel_w, -1.f), [&]()
 			{
 				components::checkbox("Enabled", &cvars::misc.kb_enabled, &cvars::misc.kb_key);
-				components::keybind("Key", &cvars::misc.kb_key);
-				components::checkbox("Friendly fire", &cvars::misc.kb_friendly_fire);
-				components::slider_float("Maximum FOV", &cvars::misc.kb_fov, 0.f, 180.f, "%.1f", "°");
-				components::slider_float("Swing distance", &cvars::misc.kb_swing_distance, 16.f, 64.f, "%.1f", "units");
-				components::slider_float("Stab distance", &cvars::misc.kb_stab_distance, 16.f, 64.f, "%.1f", "units");
-				const char* kat[] = { "Swing", "Stab" };
-				components::combo("Attack type", &cvars::misc.kb_attack_type, kat, IM_ARRAYSIZE(kat));
+				if (cvars::misc.kb_enabled)
+				{
+					components::keybind("Key", &cvars::misc.kb_key);
+					components::checkbox("Friendly fire", &cvars::misc.kb_friendly_fire);
+					components::slider_float("Maximum FOV", &cvars::misc.kb_fov, 0.f, 180.f, "%.1f", "°");
+					const char* kat[] = { "Swing", "Stab" };
+					components::combo("Attack type", &cvars::misc.kb_attack_type, kat, IM_ARRAYSIZE(kat));
+					if (cvars::misc.kb_attack_type == 0)
+						components::slider_float("Swing distance", &cvars::misc.kb_swing_distance, 16.f, 64.f, "%.1f", "units");
+					else
+						components::slider_float("Stab distance", &cvars::misc.kb_stab_distance, 16.f, 64.f, "%.1f", "units");
+				}
 			});
 			panel("Knife aim", b, ImVec2(panel_w, -1.f), [&]()
 			{
-				const char* kaim[] = { "Off", "View angles", "Silent", "Teleport" };
+				const char* kaim[] = { "Off", "Visible", "Silent", "Teleport" };
 				components::combo("Aim type", &cvars::misc.kb_aim_type, kaim, IM_ARRAYSIZE(kaim));
-				const char* khb[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs" };
-				components::multi_combo("Aim hitboxes", cvars::misc.kb_aim_hitbox, khb, IM_ARRAYSIZE(khb));
-				components::slider_float("Hitbox scale", &cvars::misc.kb_aim_hitbox_scale, 20.f, 200.f, "%.0f", "%");
-				components::checkbox("Position adjustment", &cvars::misc.kb_position_adjustment);
-				const char* kcond[] = { "No spectators", "No back attacks", "No shield" };
+				if (cvars::misc.kb_enabled && cvars::misc.kb_aim_type)
+				{
+					const char* khb[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs" };
+					components::multi_combo("Aim hitboxes", cvars::misc.kb_aim_hitbox, khb, IM_ARRAYSIZE(khb));
+					components::slider_float("Hitbox scale", &cvars::misc.kb_aim_hitbox_scale, 20.f, 200.f, "%.0f", "%");
+					components::checkbox("Position adjustment", &cvars::misc.kb_position_adjustment);
+				}
+				const char* kcond[] = { "Skip spectators", "Skip back attacks", "Skip shield" };
 				components::multi_combo("Conditions", cvars::misc.kb_conditions, kcond, IM_ARRAYSIZE(kcond));
-				components::checkbox("Debug", &cvars::misc.kb_debug);
+				components::checkbox("Debug output", &cvars::misc.kb_debug);
 			});
 		}
 		else if (section[MISC] == 3)
 		{
-			panel("Other Features", a, ImVec2(panel_w, -1.f), [&]()
+			panel("Player tools", a, ImVec2(panel_w, -1.f), [&]()
 			{
 				components::checkbox("Auto block", &cvars::misc.auto_block, &cvars::misc.auto_block_key);
-				components::keybind("Auto block key", &cvars::misc.auto_block_key);
+				if (cvars::misc.auto_block)
+					components::keybind("Auto block key", &cvars::misc.auto_block_key);
 				components::checkbox("Auto boost", &cvars::misc.auto_boost);
+				if (cvars::misc.auto_boost)
+					components::keybind("Auto boost key", &cvars::misc.auto_boost_key);
+			});
+			panel("Client tools", b, ImVec2(panel_w, -1.f), [&]()
+			{
 				components::checkbox("Block MOTD", &cvars::misc.motd_block);
 				components::checkbox("Sandbox mode", &cvars::misc.sandbox_enabled);
 				components::checkbox("SteamID spoofer", &cvars::misc.steamid_spoofer);
-components::keybind("Auto boost key", &cvars::misc.auto_boost_key);
 				components::checkbox("Game speed", &cvars::misc.speed_enabled, &cvars::misc.speed_key);
-				components::keybind("Speed key", &cvars::misc.speed_key);
-				components::slider_float("Speed value", &cvars::misc.speed_value, 0.1f, 5.f, "%.1f", "x");
+				if (cvars::misc.speed_enabled)
+				{
+					components::keybind("Speed key", &cvars::misc.speed_key);
+					components::slider_float("Speed", &cvars::misc.speed_value, 0.1f, 5.f, "%.1f", "x");
+				}
 			});
 			panel("Kill Say", b, ImVec2(panel_w, -1.f), [&]()
 			{
 				components::checkbox("Kill say", &cvars::misc.kill_say);
-				components::checkbox("Headshot only", &cvars::misc.kill_say_headshot_only);
-				components::input_text("Text (%s = nick)", cvars::misc.kill_say_text, sizeof(cvars::misc.kill_say_text));
+				if (cvars::misc.kill_say)
+				{
+					components::checkbox("Headshot only", &cvars::misc.kill_say_headshot_only);
+					components::input_text("Text (%s = nick)", cvars::misc.kill_say_text, sizeof(cvars::misc.kill_say_text));
+				}
 			});
 		}
 		else

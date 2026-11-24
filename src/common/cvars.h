@@ -38,9 +38,7 @@ struct cvars_ragebot
 	bind_t	raim_key;
 	bool	raim_delayshot[2];
 	bool	raim_tapping_mode;
-	bool	raim_reaim_bypass;
 	bool	raim_auto_fire;
-	int		raim_hitchance_seeds;
 	bind_t	raim_force_min_damage_key;
 	int		raim_force_min_damage_value;
 	int		raim_auto_scope;
@@ -86,6 +84,13 @@ struct cvars_ragebot
 	bool	aa_untrusted_checks;
 	bool	aa_conditions[3];
 
+	int		aa_stand_jitter;
+	int		aa_stand_spin;
+	float	aa_stand_spin_speed;
+	int		aa_stand_random_yaw;
+	float	aa_stand_random_range;
+	int		aa_stand_fake_pitch;
+
 	bool	aa_freestanding;
 	int		aa_freestanding_mode;
 	bind_t	aa_freestanding_key;
@@ -96,6 +101,8 @@ struct cvars_ragebot
 	bool	fake_duck;
 	bind_t	fake_duck_key;
 	int		fake_duck_choke;
+
+	bool	aa_fakelag_desync;
 
 	bool	fakelag_enabled;
 	bool	fakelag_while_shooting;
@@ -187,7 +194,6 @@ struct cvars_weapons
 	bool	raim_hitboxes[6];
 	bool	raim_auto_penetration;
 	int		raim_auto_penetration_min_damage;
-	int		raim_hitchance_seeds;
 	int		raim_force_min_damage;
 	float	raim_head_scale;
 	float	raim_neck_scale;
@@ -419,9 +425,16 @@ struct cvars_kreedz
 	bind_t	key;
 
 	bool	bunnyhop;
+	bool	bunnyhop_no_slowdown;
+	bool	ddrun;
+	bind_t	ddrun_key;
 
 	bool	groundstrafe;
-	float	groundstrafe_gain;
+	int		gs_mode;
+	bool	gs_noslowdown;
+	int		gs_noslowdown_factor;
+	float	gs_min_dist;
+	float	gs_max_dist;
 
 	bool	fastrun;
 	bind_t	fastrun_key;
@@ -445,13 +458,33 @@ struct cvars_kreedz
 	float	slowwalk_speed;
 
 	bool	rage_strafe;
+	bind_t	rage_strafe_key;
 
 	bool	legit_strafe;
+	bind_t	legit_strafe_key;
 	float	legit_strafe_speed;
 
 	bool	edgejump;
 	bind_t	edgejump_key;
 	float	edgejump_distance;
+
+	bool	strafe_ideal;
+	bind_t	strafe_ideal_key;
+
+	bool	doppler_strafe;
+	bind_t	doppler_strafe_key;
+	int		doppler_mode;
+	int		doppler_pump_ticks;
+	float	doppler_move;
+	bool	doppler_auto_jump;
+	bool	doppler_limit_velocity;
+	int		doppler_max_speed;
+	int		doppler_min_air_ticks;
+
+	bool	ladder_strafe;
+	bind_t	ladder_strafe_key;
+	int		ladder_max_speed;
+	float	ladder_move;
 };
 
 struct cvars_misc
@@ -469,6 +502,8 @@ struct cvars_misc
 	int		nospread_mode;
 
 	bool	fps_unlock;
+	bool	fps_boost;
+	int		fps_boost_target;
 	bool	fps_developer;
 	bool	replace_models_with_original;
 	bool	steamid_spoofer;
@@ -483,6 +518,12 @@ struct cvars_misc
 	bool	motd_block;
 	bool	frame_skip;
 	int		frame_skip_amount;
+
+	bool	render_decoupler;
+	bool	render_adaptive;
+	float	render_fps;
+	float	render_target_game_fps;
+	float	render_min_fps;
 	bool	maximize_on_respawn;
 	bool	client_weapons;
 
@@ -502,6 +543,25 @@ struct cvars_misc
 	bind_t	doubletap_key;
 	bool	doubletap;
 	int		doubletap_shift;
+
+	bind_t	duck_hull_key;
+	bool	duck_hull;
+	bool	duck_hull_active;
+
+	bool	timebank;
+	int		timebank_charge_ms;
+	int		timebank_release_ms;
+	int		timebank_release_ticks;
+	int		timebank_max_credit_ms;
+	int		timebank_min_credit;
+	bool	timebank_auto_release;
+	bool	timebank_legit_cap;
+	int		timebank_legit_multiplier;
+	float	timebank_real_frametime;
+
+	bool	aa_jitter_desync;
+	int		aa_jitter_side;
+
 	bind_t	kb_key;
 	bool	kb_enabled;
 	bool	kb_friendly_fire;

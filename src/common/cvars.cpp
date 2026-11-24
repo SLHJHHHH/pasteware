@@ -50,7 +50,7 @@ static void FileRageHandle()
 	g_pSettings->Key("rage.aim.type", cvars::ragebot.raim_type, 2);
 	g_pSettings->Key("rage.aim.remove.recoil", cvars::ragebot.raim_remove_recoil, true);
 	g_pSettings->Key("rage.aim.remove.spread", cvars::ragebot.raim_remove_spread, NOSPREAD_PITCH_YAW_ROLL);
-	g_pSettings->Key("rage.aim.tapping_mode", cvars::ragebot.raim_tapping_mode); g_pSettings->Key("rage.aim.hitchance.seeds", cvars::ragebot.raim_hitchance_seeds, 128); g_pSettings->Key("rage.aim.reaim_bypass", cvars::ragebot.raim_reaim_bypass); g_pSettings->Key("rage.aim.force_min_damage.key", cvars::ragebot.raim_force_min_damage_key); g_pSettings->Key("rage.aim.force_min_damage.value", cvars::ragebot.raim_force_min_damage_value, 1);
+	g_pSettings->Key("rage.aim.tapping_mode", cvars::ragebot.raim_tapping_mode); g_pSettings->Key("rage.aim.force_min_damage.key", cvars::ragebot.raim_force_min_damage_key); g_pSettings->Key("rage.aim.force_min_damage.value", cvars::ragebot.raim_force_min_damage_value, 1);
 	g_pSettings->Key("rage.aim.delayshot.unlag", cvars::ragebot.raim_delayshot[0], true);
 	g_pSettings->Key("rage.aim.delayshot.history", cvars::ragebot.raim_delayshot[1]);
 	g_pSettings->Key("rage.aim.force_body.key", cvars::ragebot.raim_force_body_key);
@@ -91,7 +91,7 @@ static void FileRageHandle()
 		g_pSettings->Key(wpn + ".aim.arms.scale", cvars::weapons[weapon_idx].raim_arms_scale);
 		g_pSettings->Key(wpn + ".aim.legs.scale", cvars::weapons[weapon_idx].raim_legs_scale);
 		g_pSettings->Key(wpn + ".aim.automatic.penetration", cvars::weapons[weapon_idx].raim_auto_penetration);
-		g_pSettings->Key(wpn + ".aim.automatic.penetration.minimum_damage", cvars::weapons[weapon_idx].raim_auto_penetration_min_damage); g_pSettings->Key(wpn + ".aim.hitchance.seeds", cvars::weapons[weapon_idx].raim_hitchance_seeds, 128); g_pSettings->Key(wpn + ".aim.force_min_damage", cvars::weapons[weapon_idx].raim_force_min_damage);
+		g_pSettings->Key(wpn + ".aim.automatic.penetration.minimum_damage", cvars::weapons[weapon_idx].raim_auto_penetration_min_damage); g_pSettings->Key(wpn + ".aim.force_min_damage", cvars::weapons[weapon_idx].raim_force_min_damage);
 		g_pSettings->Key(wpn + ".aim.autostop", cvars::weapons[weapon_idx].raim_autostop);
 		g_pSettings->Key(wpn + ".aim.autostop.crouch", cvars::weapons[weapon_idx].raim_autostop_crouch);
 	}
@@ -115,6 +115,12 @@ static void FileRageHandle()
 	g_pSettings->Key("anti-aimbot.move.yaw", cvars::ragebot.aa_move_yaw);
 	g_pSettings->Key("anti-aimbot.roll", cvars::ragebot.aa_roll);
 	g_pSettings->Key("anti-aimbot.roll.static", cvars::ragebot.aa_roll_static);
+	g_pSettings->Key("anti-aimbot.stand.jitter", cvars::ragebot.aa_stand_jitter);
+	g_pSettings->Key("anti-aimbot.stand.spin", cvars::ragebot.aa_stand_spin);
+	g_pSettings->Key("anti-aimbot.stand.spin.speed", cvars::ragebot.aa_stand_spin_speed, 360.f);
+	g_pSettings->Key("anti-aimbot.stand.random_yaw", cvars::ragebot.aa_stand_random_yaw);
+	g_pSettings->Key("anti-aimbot.stand.random_range", cvars::ragebot.aa_stand_random_range, 30.f);
+	g_pSettings->Key("anti-aimbot.stand.fake_pitch", cvars::ragebot.aa_stand_fake_pitch);
 	g_pSettings->Key("anti-aimbot.untrusted_checkes", cvars::ragebot.aa_untrusted_checks);
 	g_pSettings->Key("anti-aimbot.freestanding", cvars::ragebot.aa_freestanding);
 	g_pSettings->Key("anti-aimbot.freestanding.mode", cvars::ragebot.aa_freestanding_mode);
@@ -125,6 +131,7 @@ static void FileRageHandle()
 	g_pSettings->Key("anti-aimbot.fake_duck", cvars::ragebot.fake_duck);
 	g_pSettings->Key("anti-aimbot.fake_duck.key", cvars::ragebot.fake_duck_key);
 	g_pSettings->Key("anti-aimbot.fake_duck.choke", cvars::ragebot.fake_duck_choke, 2);
+	g_pSettings->Key("anti-aimbot.fake_lag_desync", cvars::ragebot.aa_fakelag_desync);
 
 	g_pSettings->Section("fakelag");
 	g_pSettings->Key("fakelag.enabled", cvars::ragebot.fakelag_enabled);
@@ -503,9 +510,16 @@ static void FileKreedzHandle()
 	g_pSettings->Key("kreedz.key", cvars::kreedz.key);
 
 	g_pSettings->Key("kreedz.bunnyhop", cvars::kreedz.bunnyhop);
+	g_pSettings->Key("kreedz.bunnyhop.no_slowdown", cvars::kreedz.bunnyhop_no_slowdown, true);
+	g_pSettings->Key("kreedz.ddrun", cvars::kreedz.ddrun);
+	g_pSettings->Key("kreedz.ddrun.key", cvars::kreedz.ddrun_key);
 
 	g_pSettings->Key("kreedz.groundstrafe", cvars::kreedz.groundstrafe);
-	g_pSettings->Key("kreedz.groundstrafe.gain", cvars::kreedz.groundstrafe_gain, 1.f);
+	g_pSettings->Key("kreedz.groundstrafe.mode", cvars::kreedz.gs_mode, 1);
+	g_pSettings->Key("kreedz.groundstrafe.noslowdown", cvars::kreedz.gs_noslowdown, true);
+	g_pSettings->Key("kreedz.groundstrafe.noslowdown.factor", cvars::kreedz.gs_noslowdown_factor, 4);
+	g_pSettings->Key("kreedz.groundstrafe.min_dist", cvars::kreedz.gs_min_dist, 5.f);
+	g_pSettings->Key("kreedz.groundstrafe.max_dist", cvars::kreedz.gs_max_dist, 12.f);
 
 	g_pSettings->Key("kreedz.fastrun", cvars::kreedz.fastrun);
 	g_pSettings->Key("kreedz.fastrun.key", cvars::kreedz.fastrun_key);
@@ -529,13 +543,32 @@ static void FileKreedzHandle()
 	g_pSettings->Key("kreedz.slowwalk.speed", cvars::kreedz.slowwalk_speed, 34.f);
 
 	g_pSettings->Key("kreedz.rage_strafe", cvars::kreedz.rage_strafe);
+	g_pSettings->Key("kreedz.rage_strafe.key", cvars::kreedz.rage_strafe_key);
 
 	g_pSettings->Key("kreedz.legit_strafe", cvars::kreedz.legit_strafe);
+	g_pSettings->Key("kreedz.legit_strafe.key", cvars::kreedz.legit_strafe_key);
 	g_pSettings->Key("kreedz.legit_strafe.speed", cvars::kreedz.legit_strafe_speed, 40.f);
 
 	g_pSettings->Key("kreedz.edgejump", cvars::kreedz.edgejump);
 	g_pSettings->Key("kreedz.edgejump.key", cvars::kreedz.edgejump_key);
 	g_pSettings->Key("kreedz.edgejump.distance", cvars::kreedz.edgejump_distance, 16.f);
+	g_pSettings->Key("kreedz.strafe_ideal", cvars::kreedz.strafe_ideal);
+	g_pSettings->Key("kreedz.strafe_ideal.key", cvars::kreedz.strafe_ideal_key);
+
+	g_pSettings->Key("kreedz.doppler_strafe", cvars::kreedz.doppler_strafe);
+	g_pSettings->Key("kreedz.doppler_strafe.key", cvars::kreedz.doppler_strafe_key);
+	g_pSettings->Key("kreedz.doppler_strafe.mode", cvars::kreedz.doppler_mode, 2);
+	g_pSettings->Key("kreedz.doppler_strafe.pump_ticks", cvars::kreedz.doppler_pump_ticks, 1);
+	g_pSettings->Key("kreedz.doppler_strafe.move", cvars::kreedz.doppler_move, 400.f);
+	g_pSettings->Key("kreedz.doppler_strafe.auto_jump", cvars::kreedz.doppler_auto_jump, true);
+	g_pSettings->Key("kreedz.doppler_strafe.limit_velocity", cvars::kreedz.doppler_limit_velocity);
+	g_pSettings->Key("kreedz.doppler_strafe.max_speed", cvars::kreedz.doppler_max_speed, 4000);
+	g_pSettings->Key("kreedz.doppler_strafe.min_air_ticks", cvars::kreedz.doppler_min_air_ticks, 2);
+
+	g_pSettings->Key("kreedz.ladder_strafe", cvars::kreedz.ladder_strafe);
+	g_pSettings->Key("kreedz.ladder_strafe.key", cvars::kreedz.ladder_strafe_key);
+	g_pSettings->Key("kreedz.ladder_strafe.max_speed", cvars::kreedz.ladder_max_speed, 436);
+	g_pSettings->Key("kreedz.ladder_strafe.move", cvars::kreedz.ladder_move, 400.f);
 }
 
 static void FileMiscHandle()
@@ -564,17 +597,37 @@ static void FileMiscHandle()
 	g_pSettings->Key("motd.block", cvars::misc.motd_block, true);
 	g_pSettings->Key("frame_skip.enabled", cvars::misc.frame_skip);
 	g_pSettings->Key("frame_skip.amount", cvars::misc.frame_skip_amount, 1);
+	g_pSettings->Key("render.decoupler", cvars::misc.render_decoupler);
+	g_pSettings->Key("render.adaptive", cvars::misc.render_adaptive);
+	g_pSettings->Key("render.fps", cvars::misc.render_fps, 165.f);
+	g_pSettings->Key("render.target_game_fps", cvars::misc.render_target_game_fps, 500.f);
+	g_pSettings->Key("render.min_fps", cvars::misc.render_min_fps, 144.f);
 	g_pSettings->Key("maximize_on_respawn", cvars::misc.maximize_on_respawn);
 	g_pSettings->Key("client_weapons", cvars::misc.client_weapons, true);
 	g_pSettings->Key("sandbox.enabled", cvars::misc.sandbox_enabled, true);
 	g_pSettings->Key("speed.enabled", cvars::misc.speed_enabled);
 	g_pSettings->Key("speed.key", cvars::misc.speed_key);
 	g_pSettings->Key("speed.value", cvars::misc.speed_value, 2.f);
+	g_pSettings->Key("fps_boost.enabled", cvars::misc.fps_boost);
+	g_pSettings->Key("fps_boost.target", cvars::misc.fps_boost_target, 999);
 	g_pSettings->Key("airstuck.enabled", cvars::misc.airstuck);
 	g_pSettings->Key("airstuck.key", cvars::misc.airstuck_key);
 	g_pSettings->Key("doubletap.enabled", cvars::misc.doubletap);
 	g_pSettings->Key("doubletap.key", cvars::misc.doubletap_key);
 	g_pSettings->Key("doubletap.shift", cvars::misc.doubletap_shift, 1);
+	g_pSettings->Key("duck_hull.enabled", cvars::misc.duck_hull);
+	g_pSettings->Key("duck_hull.key", cvars::misc.duck_hull_key);
+	g_pSettings->Key("timebank.enabled", cvars::misc.timebank);
+	g_pSettings->Key("timebank.charge_ms", cvars::misc.timebank_charge_ms, 5);
+	g_pSettings->Key("timebank.release_ms", cvars::misc.timebank_release_ms, 120);
+	g_pSettings->Key("timebank.release_ticks", cvars::misc.timebank_release_ticks, 3);
+	g_pSettings->Key("timebank.max_credit_ms", cvars::misc.timebank_max_credit_ms, 200);
+	g_pSettings->Key("timebank.min_credit", cvars::misc.timebank_min_credit, 40);
+	g_pSettings->Key("timebank.auto_release", cvars::misc.timebank_auto_release, true);
+	g_pSettings->Key("timebank.legit_cap", cvars::misc.timebank_legit_cap);
+	g_pSettings->Key("timebank.legit_multiplier", cvars::misc.timebank_legit_multiplier, 125);
+	g_pSettings->Key("aa_jitter_desync", cvars::misc.aa_jitter_desync);
+	g_pSettings->Key("aa_jitter_side", cvars::misc.aa_jitter_side);
 
 	g_pSettings->Section("knifebot");
 	g_pSettings->Key("knifebot.enabled", cvars::misc.kb_enabled);

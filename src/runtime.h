@@ -22,6 +22,7 @@
 #include <deque>
 #include <map>
 #include <ctime>
+#include <atomic>
 #include <functional>
 #include <wininet.h>
 #include <wbemidl.h>

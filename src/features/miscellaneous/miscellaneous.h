@@ -23,6 +23,13 @@ public:
 	bool			m_bSpeedKey;
 	bool			m_bAirStuckKey;
 	bool			m_bDoubleTapKey;
+	bool			m_bDuckHullKey;
+
+	int				m_iTimeBankReleaseTicks;
+	float			m_flTimeBankCredit;
+
+	double			m_dbSpeedBoostUntil;
+	float			m_flSpeedBoostValue;
 
 	int				m_iFrameSkipCounter;
 	float			m_flGameSpeedMultiplier;
@@ -41,22 +48,17 @@ public:
 
 	void			AutoBlock(usercmd_s* cmd);
 	void			AutoBoost(usercmd_s* cmd);
-	void			PredictPlayers();
 	void			FrameSkip();
 	bool			ShouldSkipFrame() const;
 	void			MaximizeOnRespawn();
-	void			ApplyClientWeapons();
 	void			GameSpeed();
 	float			GetGameSpeedMultiplier() const;
+	void			RequestSpeedBoost(float value, double duration);
 	void			AirStuck(usercmd_s* cmd);
 	void			DoubleTap(usercmd_s* cmd);
-	bool			IsFakeLatencyHoldActive() const;
+	void			FakeDuckHull(usercmd_s* cmd);
+	void			TimeBank(float frametime, usercmd_s* cmd);
 	void			SetFakeLatencyHoldKey(bool down);
-	void			SetAutoBlockKey(bool down);
-	void			SetAutoBoostKey(bool down);
-	void			SetSpeedKey(bool down);
-	void			SetAirStuckKey(bool down);
-	void			SetDoubleTapKey(bool down);
 };
 
 extern std::unique_ptr<CMiscellaneous> g_pMiscellaneous;

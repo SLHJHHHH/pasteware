@@ -12,6 +12,28 @@ static void PrepareForUnloading()
 	g_pMenu->CursorState();
 }
 
+// Runs on the render thread (GL context current) at the very end of a swap hook, after the original
+// has returned, so removing the hook we are standing in never touches its trampoline again.
+// requested -> in progress is claimed by CAS so the unload thread can tell "cancelled" from "started".
+static void ServiceUnloadRequest()
+{
+	bool expected = true;
+
+	if (!g_pGlobals->m_bUnloadRequested.compare_exchange_strong(expected, false))
+		return;
+
+	if (g_pMenu.get())
+		PrepareForUnloading();
+
+	DeleteHooks();
+
+	g_pNotifications.reset();
+	g_pMenu.reset();
+	g_pRenderer.reset();
+
+	g_pGlobals->m_bUnloadHooksRemoved = true;
+}
+
 static BOOL APIENTRY wglSwapBuffers(HDC hdc)
 {
 	if (!swapbuffers_hook.IsHooked())
@@ -28,11 +50,34 @@ static BOOL APIENTRY wglSwapBuffers(HDC hdc)
 
 	auto ret = reinterpret_cast<swapbuffers_t>(swapbuffers_hook.m_OrigFunc)(hdc);
 
+	static bool swap_interval_set = false;
+
+	if (cvars::misc.fps_boost)
+	{
+		if (!swap_interval_set)
+		{
+			using wglswapinterval_t = BOOL(WINAPI*)(int);
+
+			auto swap_interval = reinterpret_cast<wglswapinterval_t>(wglGetProcAddress("wglSwapIntervalEXT"));
+
+			if (swap_interval)
+				swap_interval(0);
+
+			swap_interval_set = true;
+		}
+	}
+	else
+	{
+		swap_interval_set = false;
+	}
+
 	if (cvars::visuals.streamer_mode && !Game::IsTakenScreenshot())
 	{
 		glClear(GL_COLOR_BUFFER_BIT);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	}
+
+	ServiceUnloadRequest();
 
 	return ret;
 }
@@ -58,6 +103,8 @@ static void SDL_GL_SwapWindow(int a1)
 		glClear(GL_COLOR_BUFFER_BIT);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	}
+
+	ServiceUnloadRequest();
 }
 
 static void SetRenderColoredModels(GLfloat& r, GLfloat& g, GLfloat& b, GLfloat& a)

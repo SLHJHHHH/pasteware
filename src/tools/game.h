@@ -11,6 +11,7 @@ public:
 	static bool				GetBacktrackOrigin(cl_entity_s* pGameEntity, Vector& origin);
 	static void				SetFakeLatency(const double &latency);
 	static void				MakeAngle(float* angles, usercmd_s* cmd);
+	static void				CorrectMovement(const QAngle& wished_angles, usercmd_s* cmd);
 	static void				TextureHit(Vector vecSrc, Vector vecEnd, Vector vecDir, int nSkipPhysent, pmtrace_t& pmTrace);
 	static int				SimulateFireBullet(const Vector& a_vecSrc, const Vector& a_vecEnd, const float& a_flDistance, const int& a_iPenetration, const int& a_iBulletType, const int& a_iDamage, const float& a_flRangeModifier);
 	static void				SendCommand(const bool &status);

@@ -126,6 +126,14 @@ namespace components
         }
     }
 
+    static void mark_edited_safe(ImGuiID id)
+    {
+        const ImGuiContext* ctx = GImGui;
+
+        if (ctx->ActiveId == id || ctx->ActiveId == 0)
+            ImGui::MarkItemEdited(id);
+    }
+
     bool checkbox(const char* label, bool* value, bind_t* bind)
     {
         ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -160,7 +168,7 @@ namespace components
         if (pressed)
         {
             *value = !(*value);
-            ImGui::MarkItemEdited(id);
+            mark_edited_safe(id);
         }
 
 
@@ -241,15 +249,19 @@ namespace components
                     bind->keynum = 0;
                     g_WaitingKeyId = 0;
                 }
-                else
+                else if (!ImGui::IsAnyItemActive())
                 {
                     bool ignore_mouse = (ImGui::GetFrameCount() <= g_WaitingKeyFrame + 5);
                     int pressed_key = poll_pressed_key(ignore_mouse);
                     if (pressed_key > 0)
                     {
                         bind->keynum = pressed_key;
+
+                        if (bind->type != KEY_ON_PRESS && bind->type != KEY_ON_TOGGLE)
+                            bind->type = KEY_ON_PRESS;
+
                         g_WaitingKeyId = 0;
-                        ImGui::MarkItemEdited(id);
+                        mark_edited_safe(id);
                     }
                 }
             }
@@ -362,13 +374,13 @@ namespace components
             {
                 *value = std::clamp(g_TypedSliderInt, min_val, max_val);
                 g_ActiveSliderInputId = 0;
-                ImGui::MarkItemEdited(id);
+                mark_edited_safe(id);
             }
             else if (!ImGui::IsItemActive() && ImGui::IsMouseClicked(0) && !ImGui::IsItemHovered())
             {
                 *value = std::clamp(g_TypedSliderInt, min_val, max_val);
                 g_ActiveSliderInputId = 0;
-                ImGui::MarkItemEdited(id);
+                mark_edited_safe(id);
             }
             ImGui::PopItemWidth();
         }
@@ -396,7 +408,7 @@ namespace components
             if (*value != new_val)
             {
                 *value = new_val;
-                ImGui::MarkItemEdited(id);
+                mark_edited_safe(id);
             }
         }
 
@@ -477,13 +489,13 @@ namespace components
             {
                 *value = std::clamp(g_TypedSliderFloat, min_val, max_val);
                 g_ActiveSliderInputId = 0;
-                ImGui::MarkItemEdited(id);
+                mark_edited_safe(id);
             }
             else if (!ImGui::IsItemActive() && ImGui::IsMouseClicked(0) && !ImGui::IsItemHovered())
             {
                 *value = std::clamp(g_TypedSliderFloat, min_val, max_val);
                 g_ActiveSliderInputId = 0;
-                ImGui::MarkItemEdited(id);
+                mark_edited_safe(id);
             }
             ImGui::PopItemWidth();
         }
@@ -511,7 +523,7 @@ namespace components
             if (*value != new_val)
             {
                 *value = new_val;
-                ImGui::MarkItemEdited(id);
+                mark_edited_safe(id);
             }
         }
 
@@ -610,15 +622,19 @@ namespace components
                 bind->keynum = 0;
                 g_WaitingKeyId = 0;
             }
-            else
+            else if (!ImGui::IsAnyItemActive())
             {
                 bool ignore_mouse = (ImGui::GetFrameCount() <= g_WaitingKeyFrame + 5);
                 int pressed_key = poll_pressed_key(ignore_mouse);
                 if (pressed_key > 0)
                 {
                     bind->keynum = pressed_key;
+
+                    if (bind->type != KEY_ON_PRESS && bind->type != KEY_ON_TOGGLE)
+                        bind->type = KEY_ON_PRESS;
+
                     g_WaitingKeyId = 0;
-                    ImGui::MarkItemEdited(id);
+                    mark_edited_safe(id);
                 }
             }
         }

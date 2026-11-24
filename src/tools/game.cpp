@@ -313,14 +313,14 @@ bool Game::BacktrackPlayer(cl_entity_s* pGameEntity, int lerp_msec, Vector& orig
 	double correct = min(LAG_COMPENSATION_DATA_TIME, latency);
 
 	
-	if (sv_maxunlag->value)
+	const double maxUnlag = (std::max)(0.0, static_cast<double>(sv_maxunlag->value));
+
+	if (maxUnlag > 0.0)
 	{
 		
-		if (sv_maxunlag->value < 0.f)
-			sv_maxunlag->value = 0.f;
 
 		
-		correct = min(correct, sv_maxunlag->value);
+		correct = min(correct, maxUnlag);
 	}
 
 	
@@ -346,11 +346,15 @@ bool Game::BacktrackPlayer(cl_entity_s* pGameEntity, int lerp_msec, Vector& orig
 	
 	targettime = min(realtime, targettime);
 
-	position_history_t *newer, *older;
+	position_history_t* newer = nullptr;
+	position_history_t* older = nullptr;
 
-	FindSpanningContexts(pGameEntity, float(targettime), &newer, &older);
+	const bool extrapolated = FindSpanningContexts(pGameEntity, static_cast<float>(targettime), &newer, &older);
 
 	if (!newer || !older)
+		return false;
+
+	if (extrapolated)
 		return false;
 
 	float frac = 0.f;
@@ -453,6 +457,41 @@ void Game::SetFakeLatency(const double &latency)
 			break;
 		}
 	}
+}
+
+void Game::CorrectMovement(const QAngle& wished_angles, usercmd_s* cmd)
+{
+	float flSpeed = Vector2D(cmd->forwardmove, cmd->sidemove).Length();
+
+	if (!flSpeed)
+		return;
+
+	QAngle QWished, QCurrent(cmd->viewangles);
+
+	QWished.x = wished_angles.x;
+	QWished.y = wished_angles.y;
+	QWished.z = wished_angles.z;
+
+	QWished.Normalize();
+	QCurrent.Normalize();
+
+	const bool bPitchBackOld = (QCurrent.x > 90.f || QCurrent.x < -90.f);
+	const bool bPitchBackNew = (QWished.x > 90.f || QWished.x < -90.f);
+
+	float flWishedYaw = QWished.y;
+
+	if (bPitchBackOld != bPitchBackNew)
+		flWishedYaw += 180.f;
+
+	const float flYaw = DEG2RAD(flWishedYaw - QCurrent.y);
+	const float flSin = sin(flYaw);
+	const float flCos = cos(flYaw);
+
+	const float flForward = cmd->forwardmove;
+	const float flSide = cmd->sidemove;
+
+	cmd->forwardmove = flCos * flForward + flSin * flSide;
+	cmd->sidemove = flCos * flSide - flSin * flForward;
 }
 
 void Game::MakeAngle(float* angles, usercmd_s* cmd)

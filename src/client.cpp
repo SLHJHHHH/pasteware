@@ -65,6 +65,12 @@ static void PreS_DynamicSound(int index, DWORD channel, char* pszSoundFile, floa
 
 					g_pSound->UpdatePlayerHealth(resolved_index, pszSoundFile);
 					g_pSound->UpdatePlayerWeapon(resolved_index, pszSoundFile);
+
+					if (g_pSound->IsWeaponSound(pszSoundFile) && g_pRageBot.get() && resolved_index != g_Local->m_iEntIndex)
+					{
+						if (cvars::ragebot.friendly_fire || g_Player[resolved_index]->m_iTeamNum != g_Local->m_iTeamNum)
+							g_pRageBot->OnEnemyShot();
+					}
 				}
 			}
 		}
@@ -162,13 +168,37 @@ static void SCR_UpdateScreen()
 	if (!scr_update_screen.IsHooked())
 		return;
 
-	if (!g_pGlobals->m_bIsUnloadingLibrary)
+	if (!g_pGlobals->m_bIsUnloadingLibrary && cvars::misc.render_decoupler && g_pGlobals->m_bIsInGame)
 	{
+		static double last_render_time = 0.0;
 
+		const double now = std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 
+		float effective_fps = std::clamp(cvars::misc.render_fps, 30.f, 1000.f);
 
+		if (cvars::misc.render_adaptive)
+		{
+			const float game_fps = (g_pGlobals->m_flFrameTime > 0.f) ? 1.f / g_pGlobals->m_flFrameTime : 999.f;
+			const float target_game = std::clamp(cvars::misc.render_target_game_fps, 60.f, 1000.f);
+			const float min_render = std::clamp(cvars::misc.render_min_fps, 30.f, 240.f);
 
+			if (game_fps < target_game)
+			{
+				const float ratio = std::clamp(game_fps / target_game, 0.f, 1.f);
 
+				effective_fps = min_render + (effective_fps - min_render) * ratio;
+
+				if (effective_fps < min_render)
+					effective_fps = min_render;
+			}
+		}
+
+		const double render_interval = 1.0 / static_cast<double>(effective_fps);
+
+		if (now - last_render_time < render_interval)
+			return;
+
+		last_render_time = now;
 	}
 
 	((SCR_UpdateScreen_t)scr_update_screen.m_OrigFunc)();
@@ -243,6 +273,8 @@ static void CL_CreateMove(float frametime, usercmd_s* cmd, int active)
 
 					g_pMiscellaneous->DoubleTap(cmd);
 					g_pMiscellaneous->AirStuck(cmd);
+					g_pMiscellaneous->FakeDuckHull(cmd);
+					g_pMiscellaneous->TimeBank(frametime, cmd);
 
 					g_HitRegister.Update(cmd);
 				}
@@ -333,6 +365,17 @@ static void HUD_Frame(double frametime)
 
 		if (cvars::misc.fps_unlock && g_ClientCvarsMap["fps_max"])
 			g_ClientCvarsMap["fps_max"]->value = 999.f;
+
+		if (cvars::misc.fps_boost)
+		{
+			const float target = std::clamp(static_cast<float>(cvars::misc.fps_boost_target), 100.f, 999.f);
+
+			if (g_ClientCvarsMap["fps_max"])
+				g_ClientCvarsMap["fps_max"]->value = target;
+
+			if (g_ClientCvarsMap["fps_modem"])
+				g_ClientCvarsMap["fps_modem"]->value = target;
+		}
 
 		if (cvars::misc.fps_developer && g_ClientCvarsMap["developer"])
 			g_ClientCvarsMap["developer"]->value = 0.f;
@@ -425,6 +468,22 @@ static void HUD_PostRunCmd(local_state_s* from, local_state_s* to, usercmd_s* cm
 static void HUD_TempEntUpdate(double frametime, double client_time, double cl_gravity, tempent_s** ppTempEntFree, tempent_s** ppTempEntActive,
 	int(*Callback_AddVisibleEntity)(cl_entity_s* pEntity), void(*Callback_TempEntPlaySound)(tempent_s* pTemp, float damp))
 {
+	if (cvars::visuals.remove_smoke && ppTempEntActive)
+	{
+		tempent_s* pTemp = *ppTempEntActive;
+
+		while (pTemp)
+		{
+			if (pTemp->entity.model && pTemp->entity.model->name &&
+				(!_stricmp(pTemp->entity.model->name, "sprites/smoke.spr") || !_stricmp(pTemp->entity.model->name, "sprites/smoke2.spr")))
+			{
+				pTemp->die = static_cast<float>(client_state->time) - 1.f;
+			}
+
+			pTemp = pTemp->next;
+		}
+	}
+
 	if (!g_pGlobals->m_bIsUnloadingLibrary && Game::IsConnected() && !Game::IsTakenScreenshot() && !cvars::visuals.streamer_mode)
 	{
 		if (g_pVisuals.get())
@@ -518,11 +577,21 @@ static int CL_IsThirdPerson()
 
 static void V_CalcRefdef(ref_params_s* pparams)
 {
-	if (!g_pGlobals->m_bIsUnloadingLibrary && Game::IsConnected())
+	if (!g_pGlobals->m_bIsUnloadingLibrary && Game::IsConnected() && !Game::IsTakenScreenshot())
 	{
-	}
+		Vector saved_punchangle = client_state->punchangle;
 
-	g_Client.V_CalcRefdef(pparams);
+		if (cvars::visuals.remove_visual_recoil)
+		{
+			client_state->punchangle.x = 0.f;
+			client_state->punchangle.y = 0.f;
+			client_state->punchangle.z = 0.f;
+		}
+
+		g_Client.V_CalcRefdef(pparams);
+
+		client_state->punchangle = saved_punchangle;
+	}
 
 	if (!g_pGlobals->m_bIsUnloadingLibrary && Game::IsConnected())
 	{
@@ -589,6 +658,13 @@ static bool HandleBind(bind_t key, int keynum, int down, bool* state, std::strin
 			return OnPress(key.keynum, keynum, down, state);
 		case KEY_ON_TOGGLE:
 			return OnToggle(key.keynum, keynum, down, state, name);
+		default:
+			if (keynum == key.keynum)
+			{
+				*state = !!down;
+				return true;
+			}
+			break;
 		}
 	}
 
@@ -629,12 +705,33 @@ static int HUD_Key_Event(int down, int keynum, const char* pszCurrentBinding)
 
 			if (HandleBind(cvars::misc.doubletap_key, keynum, down, &g_pMiscellaneous->m_bDoubleTapKey, "DOUBLETAP"))
 				return 0;
+
+			if (HandleBind(cvars::misc.duck_hull_key, keynum, down, &g_pMiscellaneous->m_bDuckHullKey, "DUCK HULL"))
+				return 0;
 		}
 
 		if (HandleBind(cvars::kreedz.slowwalk_key, keynum, down, &g_Kreedz.m_bSlowWalkKey, "SLOWWALK"))
 			return 0;
 
 		if (HandleBind(cvars::kreedz.fastrun_key, keynum, down, &g_Kreedz.m_bFastRunKey, "FAST RUN"))
+			return 0;
+
+		if (HandleBind(cvars::kreedz.ddrun_key, keynum, down, &g_Kreedz.m_bDDRunKey, "DDRUN"))
+			return 0;
+
+		if (HandleBind(cvars::kreedz.strafe_ideal_key, keynum, down, &g_Kreedz.m_bIdealStrafeKey, "GOLDSRC STRAFE"))
+			return 0;
+
+		if (HandleBind(cvars::kreedz.rage_strafe_key, keynum, down, &g_Kreedz.m_bRageStrafeKey, "RAGE STRAFE"))
+			return 0;
+
+		if (HandleBind(cvars::kreedz.legit_strafe_key, keynum, down, &g_Kreedz.m_bLegitStrafeKey, "LEGIT STRAFE"))
+			return 0;
+
+		if (HandleBind(cvars::kreedz.doppler_strafe_key, keynum, down, &g_Kreedz.m_bDopplerStrafeKey, "DOPPLER STRAFE"))
+			return 0;
+
+		if (HandleBind(cvars::kreedz.ladder_strafe_key, keynum, down, &g_Kreedz.m_bLadderStrafeKey, "LADDER STRAFE"))
 			return 0;
 
 		if (HandleBind(cvars::kreedz.degen_key, keynum, down, &g_Kreedz.m_bDeGenKey, "DEGEN"))
@@ -669,7 +766,7 @@ static int HUD_Key_Event(int down, int keynum, const char* pszCurrentBinding)
 			if (HandleBind(cvars::ragebot.raim_force_min_damage_key, keynum, down, &g_pRageBot->m_bForceMinDamage, "FORCE MIN DAMAGE"))
 				return 0;
 
-			if (HandleBind(cvars::ragebot.aa_side_key, keynum, down, reinterpret_cast<bool*>(&cvars::ragebot.aa_side)))
+			if (HandleBind(cvars::ragebot.aa_side_key, keynum, down, &g_pRageBot->m_bSideOverride, "AA SIDE"))
 				return 0;
 
 			if (HandleBind(cvars::ragebot.aa_freestanding_key, keynum, down, &g_pRageBot->m_bFreestanding, "FREESTANDING"))
@@ -979,7 +1076,40 @@ void CL_RunUsercmd(local_state_t* from, local_state_t* to, usercmd_t* u, qboolea
 	if (!cl_runusercmd.IsHooked())
 		return;
 
-	return ((CL_RunUsercmd_t)cl_runusercmd.m_OrigFunc)(from, to, u, runfuncs, time, random_seed);
+	// fake duck hull: server never receives IN_DUCK (stripped in CreateMove),
+	// but we force the ducked hull locally so our own physics, eye height and
+	// viewmodel stay crouched while the server-side hitbox keeps standing.
+	bool forced_duck_hull = false;
+	int  saved_usehull = 0;
+	byte saved_msec = 0;
+	bool restored_msec = false;
+
+	if (!g_pGlobals->m_bIsUnloadingLibrary && cvars::misc.duck_hull_active && pmove && u)
+	{
+		saved_usehull = pmove->usehull;
+		pmove->usehull = HULL_DUCKED;
+		forced_duck_hull = true;
+	}
+
+	if (!g_pGlobals->m_bIsUnloadingLibrary && cvars::misc.timebank && cvars::misc.timebank_real_frametime > 0.f && u)
+	{
+		const byte real_msec = static_cast<byte>(std::clamp(static_cast<int>(std::lround(cvars::misc.timebank_real_frametime)), 1, 255));
+
+		if (u->msec != real_msec)
+		{
+			saved_msec = u->msec;
+			u->msec = real_msec;
+			restored_msec = true;
+		}
+	}
+
+	((CL_RunUsercmd_t)cl_runusercmd.m_OrigFunc)(from, to, u, runfuncs, time, random_seed);
+
+	if (restored_msec)
+		u->msec = saved_msec;
+
+	if (forced_duck_hull)
+		pmove->usehull = saved_usehull;
 }
 
 int NET_SendPacket(netsrc_t sock, size_t length, const void* data, netadr_t to)

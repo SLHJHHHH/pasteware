@@ -20,6 +20,7 @@ struct TabWidgetsData
 {
 	std::string label;
 	float fading_value;
+	float active_fade = 0.f;
 };
 
 class CMenuGui

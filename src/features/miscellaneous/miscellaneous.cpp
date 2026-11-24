@@ -18,6 +18,11 @@ CMiscellaneous::CMiscellaneous()
 	m_bSpeedKey = false;
 	m_bAirStuckKey = false;
 	m_bDoubleTapKey = false;
+	m_bDuckHullKey = false;
+	m_iTimeBankReleaseTicks = 0;
+	m_flTimeBankCredit = 0.f;
+	m_dbSpeedBoostUntil = 0.0;
+	m_flSpeedBoostValue = 1.f;
 	m_iFrameSkipCounter = 0;
 	m_flGameSpeedMultiplier = 1.f;
 	m_flPositionAdjustmentInterpAmount = 0.f;
@@ -149,40 +154,21 @@ void CMiscellaneous::FakeLatency()
 	}
 }
 
-bool CMiscellaneous::IsFakeLatencyHoldActive() const
-{
-	return m_bFakeLatencyHoldKey;
-}
 
-void CMiscellaneous::SetFakeLatencyHoldKey(bool down)
-{
-	m_bFakeLatencyHoldKey = down;
-}
 
-void CMiscellaneous::SetAutoBlockKey(bool down)
-{
-	m_bAutoBlockKey = down;
-}
 
-void CMiscellaneous::SetAutoBoostKey(bool down)
-{
-	m_bAutoBoostKey = down;
-}
 
-void CMiscellaneous::SetSpeedKey(bool down)
-{
-	m_bSpeedKey = down;
-}
 
-void CMiscellaneous::SetAirStuckKey(bool down)
-{
-	m_bAirStuckKey = down;
-}
 
-void CMiscellaneous::SetDoubleTapKey(bool down)
-{
-	m_bDoubleTapKey = down;
-}
+
+
+
+
+
+
+
+
+
 
 void CMiscellaneous::AutoBlock(usercmd_s* cmd)
 {
@@ -233,23 +219,9 @@ void CMiscellaneous::AutoBoost(usercmd_s* cmd)
 	cmd->buttons |= IN_DUCK;
 }
 
-void CMiscellaneous::PredictPlayers()
-{
-	if (cvars::misc.predict_local && g_ClientCvarsMap["cl_lc"])
-		g_ClientCvarsMap["cl_lc"]->value = 1.f;
 
-	if (cvars::misc.predict_players && g_ClientCvarsMap["cl_lw"])
-		g_ClientCvarsMap["cl_lw"]->value = 1.f;
-}
 
-void CMiscellaneous::ApplyClientWeapons()
-{
-	if (!cvars::misc.client_weapons)
-		return;
 
-	if (g_ClientCvarsMap["cl_lw"])
-		g_ClientCvarsMap["cl_lw"]->value = 1.f;
-}
 
 void CMiscellaneous::FrameSkip()
 {
@@ -264,6 +236,9 @@ bool CMiscellaneous::ShouldSkipFrame() const
 	const int amount = std::clamp(cvars::misc.frame_skip_amount, 1, 10);
 
 	if (amount <= 1)
+		return false;
+
+	if (g_pMenu.get() && g_pMenu->IsOpened())
 		return false;
 
 	return (m_iFrameSkipCounter % (amount + 1)) == 0;
@@ -302,7 +277,24 @@ void CMiscellaneous::GameSpeed()
 
 float CMiscellaneous::GetGameSpeedMultiplier() const
 {
+	if (client_state && client_state->time < m_dbSpeedBoostUntil)
+	{
+		if (m_flSpeedBoostValue > m_flGameSpeedMultiplier)
+			return m_flSpeedBoostValue;
+	}
+
 	return m_flGameSpeedMultiplier;
+}
+
+void CMiscellaneous::RequestSpeedBoost(float value, double duration)
+{
+	if (value <= 1.f || duration <= 0.0)
+		return;
+
+	m_flSpeedBoostValue = value;
+
+	if (client_state)
+		m_dbSpeedBoostUntil = client_state->time + duration;
 }
 
 void CMiscellaneous::AirStuck(usercmd_s* cmd)
@@ -448,4 +440,87 @@ float CMiscellaneous::GetInterpAmount(const int& lerp)
 	const float interp = (m_flPositionAdjustmentInterpAmount + diff);
 
 	return interp;
+}
+
+void CMiscellaneous::FakeDuckHull(usercmd_s* cmd)
+{
+	cvars::misc.duck_hull_active = false;
+
+	if (!cvars::misc.duck_hull)
+		return;
+
+	if (!Game::IsConnected() || g_Local->m_bIsDead)
+		return;
+
+	if (cvars::misc.duck_hull_key.keynum && !m_bDuckHullKey)
+		return;
+
+	if (client_static->demoplayback)
+		return;
+
+	if (!(cmd->buttons & IN_DUCK))
+		return;
+
+	// strip duck from the outgoing command: the server never sees us crouch,
+	// so it keeps the standing hull for our hitboxes. the local ducked
+	// physics/camera is forced inside the CL_RunUsercmd hook instead.
+	cmd->buttons &= ~IN_DUCK;
+
+	cvars::misc.duck_hull_active = true;
+}
+
+void CMiscellaneous::TimeBank(float frametime, usercmd_s* cmd)
+{
+	if (!cvars::misc.timebank)
+	{
+		m_iTimeBankReleaseTicks = 0;
+		m_flTimeBankCredit = 0.f;
+		return;
+	}
+
+	if (!Game::IsConnected() || g_Local->m_bIsDead || client_static->demoplayback)
+	{
+		m_iTimeBankReleaseTicks = 0;
+		m_flTimeBankCredit = 0.f;
+		return;
+	}
+
+	const float real_ms = std::clamp(frametime * 1000.f, 1.f, 255.f);
+
+	if (real_ms <= 0.f)
+		return;
+
+	cvars::misc.timebank_real_frametime = real_ms;
+
+	if (m_iTimeBankReleaseTicks <= 0 && cvars::misc.timebank_auto_release && m_flTimeBankCredit >= static_cast<float>(cvars::misc.timebank_min_credit))
+		m_iTimeBankReleaseTicks = std::clamp(cvars::misc.timebank_release_ticks, 1, 10);
+
+	float desired_ms = real_ms;
+
+	if (m_iTimeBankReleaseTicks > 0)
+	{
+		desired_ms = static_cast<float>(std::clamp(cvars::misc.timebank_release_ms, 20, 255));
+
+		if (cvars::misc.timebank_legit_cap)
+		{
+			const float cap = real_ms * (static_cast<float>(std::clamp(cvars::misc.timebank_legit_multiplier, 100, 150)) / 100.f);
+			desired_ms = (std::min)(desired_ms, cap);
+		}
+
+		m_flTimeBankCredit -= (desired_ms - real_ms);
+		m_iTimeBankReleaseTicks--;
+	}
+	else
+	{
+		desired_ms = static_cast<float>(std::clamp(cvars::misc.timebank_charge_ms, 1, 20));
+
+		m_flTimeBankCredit += (real_ms - desired_ms);
+	}
+
+	m_flTimeBankCredit = std::clamp(m_flTimeBankCredit, 0.f, static_cast<float>(std::clamp(cvars::misc.timebank_max_credit_ms, 50, 500)));
+
+	int msec = static_cast<int>(std::lround(desired_ms));
+	msec = std::clamp(msec, 1, 255);
+
+	cmd->msec = static_cast<byte>(msec);
 }

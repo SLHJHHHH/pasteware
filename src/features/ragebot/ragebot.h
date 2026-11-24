@@ -21,14 +21,21 @@ public:
 	bool			m_bAimState;
 	bool			m_bForceBody;
 	bool			m_bForceMinDamage;
-	bool			m_bResolverForceUpdate;
 
 	bool			m_bFreestanding;
+	bool			m_bSideOverride;
 	bool			m_bFakeDuckState;
 	bool			m_bFakeDuckActive;
 	float			m_flEnemyShotTime;
 
+	int				m_iResolverSide[MAX_CLIENTS + 1] = { 0 };
+	float			m_flResolverShift[MAX_CLIENTS + 1] = { 0.f };
+
 	QAngle			m_QAntiAimbotAngle;
+
+	enum class PSilentState { Idle, HoldShot, Release };
+
+	PSilentState	m_psilentState;
 
 	void			Run(usercmd_s* cmd);
 	void			Aimbot(usercmd_s* cmd);

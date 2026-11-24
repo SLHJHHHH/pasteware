@@ -183,6 +183,34 @@ bool CMenuGui::TabList(std::vector<TabWidgetsData>& data, int& selected, int& ho
 
 	ImGui::SetCursorPos(ImVec2(x, y));
 
+	const ImVec4 accent = components::get_accent_color();
+	const ImVec2 win_pos = GImGui->CurrentWindow->Pos;
+	ImDrawList* draw = GImGui->CurrentWindow->DrawList;
+
+	// The highlight slides to the selected tab instead of jumping; snapped on the first frame.
+	static float slide_x = -1.f;
+	const float target_x = win_pos.x + x + selected * (button_size.x + gap) + button_size.x * 0.5f;
+	if (slide_x < 0.f || selected < 0 || selected >= static_cast<int>(data.size()))
+		slide_x = target_x;
+	else
+		slide_x += (target_x - slide_x) * (1.f - expf(-18.f * GImGui->IO.DeltaTime));
+
+	if (selected >= 0 && selected < static_cast<int>(data.size()))
+	{
+		// Sliding plate: tinted rounded body, accent outline, a glow rising from the bottom edge and a short accent bar.
+		const ImVec2 plate_min(slide_x - button_size.x * 0.5f, win_pos.y + y);
+		const ImVec2 plate_max(slide_x + button_size.x * 0.5f, win_pos.y + y + button_size.y);
+		const float rounding = 10.f;
+
+		draw->AddRectFilled(plate_min, plate_max, ImColor(accent.x, accent.y, accent.z, 0.13f), rounding);
+		// Gradients cannot be rounded, so the glow is inset enough to stay inside the corner arcs (r = 10).
+		draw->AddRectFilledMultiColor(ImVec2(plate_min.x + 6.f, plate_max.y - 22.f), ImVec2(plate_max.x - 6.f, plate_max.y - 1.5f),
+			ImColor(accent.x, accent.y, accent.z, 0.f), ImColor(accent.x, accent.y, accent.z, 0.f),
+			ImColor(accent.x, accent.y, accent.z, 0.20f), ImColor(accent.x, accent.y, accent.z, 0.20f));
+		draw->AddRect(plate_min, plate_max, ImColor(accent.x, accent.y, accent.z, 0.40f), rounding, ImDrawCornerFlags_All, 1.f);
+		draw->AddRectFilled(ImVec2(slide_x - 11.f, plate_max.y - 3.f), ImVec2(slide_x + 11.f, plate_max.y - 1.f), ImColor(accent), 1.f);
+	}
+
 	for (size_t i = 0; i < data.size(); i++)
 	{
 		const std::string id = "##main_tab_" + std::to_string(i);
@@ -192,24 +220,39 @@ bool CMenuGui::TabList(std::vector<TabWidgetsData>& data, int& selected, int& ho
 		const ImVec2 text_size = g_pPrimTextFont ? g_pPrimTextFont->CalcTextSizeA(12.f, FLT_MAX, 0.f, data[i].label.c_str()) : ImGui::CalcTextSize(data[i].label.c_str());
 		const bool active = selected == static_cast<int>(i);
 		const bool hot = ImGui::IsItemHovered();
-		const ImColor color = active ? ImColor(242, 242, 244) : hot ? ImColor(187, 187, 190) : ImColor(132, 132, 136);
-		const ImVec2 center((min.x + max.x) * 0.5f, min.y + 18.f);
-		if (active)
-			GImGui->CurrentWindow->DrawList->AddCircleFilled(center, 17.f, ImColor(66, 53, 58));
-		else if (hot)
-			GImGui->CurrentWindow->DrawList->AddCircleFilled(center, 17.f, ImColor(47, 47, 50));
+		const float fade = data[i].fading_value;
+		data[i].active_fade += ((active ? 1.f : 0.f) - data[i].active_fade) * (1.f - expf(-14.f * GImGui->IO.DeltaTime));
+		const float on = data[i].active_fade;
+
+		// Inactive: grey that brightens on hover. Active: label white, icon accent blended towards white.
+		const ImVec4 idle_col = ImLerp(ImVec4(132 / 255.f, 132 / 255.f, 136 / 255.f, 1.f), ImVec4(196 / 255.f, 196 / 255.f, 200 / 255.f, 1.f), fade);
+		const ImVec4 icon_on = ImLerp(accent, ImVec4(1.f, 1.f, 1.f, 1.f), 0.55f);
+		const ImColor icon_color(ImLerp(idle_col, icon_on, on));
+		const ImColor label_color(ImLerp(idle_col, ImVec4(242 / 255.f, 242 / 255.f, 244 / 255.f, 1.f), on));
+
+		if (fade > 0.f && on < 1.f)
+			GImGui->CurrentWindow->DrawList->AddRectFilled(ImVec2(min.x, min.y), ImVec2(max.x, max.y), ImColor(1.f, 1.f, 1.f, 0.06f * fade * (1.f - on)), 10.f);
+
+		const float icon_size = 21.f;
+		const ImVec2 center((min.x + max.x) * 0.5f, min.y + 17.f);
 
 		if (i == 6)
 		{
 			const char* con_txt = ">_";
-			const ImVec2 con_sz = ImGui::CalcTextSize(con_txt);
-			GImGui->CurrentWindow->DrawList->AddText(ImVec2(center.x - con_sz.x * 0.5f, center.y - con_sz.y * 0.5f), color, con_txt);
+			const float con_font = 19.f;
+			const ImVec2 con_sz = g_pPrimTextFont ? g_pPrimTextFont->CalcTextSizeA(con_font, FLT_MAX, 0.f, con_txt) : ImGui::CalcTextSize(con_txt);
+			const ImVec2 con_pos(center.x - con_sz.x * 0.5f, center.y - con_sz.y * 0.5f);
+
+			if (g_pPrimTextFont)
+				GImGui->CurrentWindow->DrawList->AddText(g_pPrimTextFont, con_font, con_pos, icon_color, con_txt);
+			else
+				GImGui->CurrentWindow->DrawList->AddText(con_pos, icon_color, con_txt);
 		}
 		else
 		{
-			render::font_icons.draw_icon(GImGui->CurrentWindow->DrawList, icon_chars[i], ImVec2(center.x - 9.f, min.y + 9.f), 18.f, color);
+			render::font_icons.draw_icon(GImGui->CurrentWindow->DrawList, icon_chars[i], ImVec2(center.x - icon_size * 0.5f, center.y - icon_size * 0.5f), icon_size, icon_color);
 		}
-		GImGui->CurrentWindow->DrawList->AddText(g_pPrimTextFont, 12.f, ImVec2((min.x + max.x - text_size.x) * 0.5f, min.y + 33.f), color, data[i].label.c_str());
+		GImGui->CurrentWindow->DrawList->AddText(g_pPrimTextFont, 12.f, ImVec2((min.x + max.x - text_size.x) * 0.5f, min.y + 31.f), label_color, data[i].label.c_str());
 
 		if (pressed_button)
 		{

@@ -12,6 +12,9 @@ public:
 	std::string		m_sDebugFile;
 	std::string		m_sHWID;
 	bool			m_bIsUnloadingLibrary;
+	// Hot-unload handshake (see runtime.cpp / opengl.cpp). Pending = requested; in progress = !requested && !hooks_removed.
+	std::atomic<bool> m_bUnloadRequested{ false };
+	std::atomic<bool> m_bUnloadHooksRemoved{ false };
 	bool			m_bIsGameHooked;
 	bool			m_bIsSDL2Hooked;
 	bool			m_bIsInGame;
